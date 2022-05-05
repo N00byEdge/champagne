@@ -34,7 +34,7 @@ fn call_entry(entry_point: usize) c_int {
         normalize_proceess_first_param: u64 = 0x41414141,
     };
     const arg = &Arg{};
-    // @TODO: Use `callconv(.Win64)` when available 
+    // @TODO: https://github.com/ziglang/zig/issues/11585
     return asm volatile(
         \\ call *%[entry]
         :
@@ -45,7 +45,7 @@ fn call_entry(entry_point: usize) c_int {
         :
           "memory"
     );
-    //return @intToPtr(fn() callconv(.Stdcall) c_int, entry_point)(&.{});
+    //return @intToPtr(fn() callconv(.Win64) c_int, entry_point)(&.{});
 }
 
 const HINSTANCE = ?*anyopaque;

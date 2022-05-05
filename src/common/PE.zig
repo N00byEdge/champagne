@@ -1,7 +1,5 @@
 const std = @import("std");
 
-const ResolveContext = @import("resolve_context.zig").ResolveContext;
-
 const log = std.log.scoped(.PE);
 
 const IMAGE_DIRECTORY_ENTRY_EXPORT = 0; // Export directory
@@ -124,16 +122,16 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, import_resolve_cont
                     // IMAGE_REL_BASED_HIGH
                     // The base relocation adds the high 16 bits of the difference to the 16-bit field at offset.
                     // The 16-bit field represents the high value of a 32-bit word.
-                    // 1 => std.mem.bytesAsSlice(u16, reloc_bytes)[0] += @truncate(u16, load_delta >> 16),
+                    // 1 => std.mem.bytesAsSlice(u16, reloc_bytes)[0] +%= @truncate(u16, load_delta >> 16),
 
                     // IMAGE_REL_BASED_LOW
                     // The base relocation adds the low 16 bits of the difference to the 16-bit field at offset.
                     // The 16-bit field represents the low half of a 32-bit word.
-                    // 2 => std.mem.bytesAsSlice(u16, reloc_bytes)[0] += @truncate(u16, load_delta),
+                    // 2 => std.mem.bytesAsSlice(u16, reloc_bytes)[0] +%= @truncate(u16, load_delta),
 
                     // IMAGE_REL_BASED_HIGHLOW
                     // The base relocation applies all 32 bits of the difference to the 32-bit field at offset.
-                    // 3 => std.mem.bytesAsSlice(u32, reloc_bytes)[0] += @intCast(u32, load_delta),
+                    // 3 => std.mem.bytesAsSlice(u32, reloc_bytes)[0] +%= @intCast(u32, load_delta),
 
                     // IMAGE_REL_BASED_HIGHADJ
                     // The base relocation adds the high 16 bits of the difference to the 16-bit field at offset.

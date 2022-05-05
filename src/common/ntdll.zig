@@ -1,5 +1,7 @@
 const std = @import("std");
 
+// @TODO: https://github.com/ziglang/zig/issues/11585
+
 fn stub(comptime str: []const u8) *const anyopaque {
     return @ptrCast(*const anyopaque, struct {
         fn f() noreturn {
