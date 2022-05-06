@@ -7,8 +7,7 @@ const log = std.log.scoped(.ntdll);
 
 fn stub(comptime str: []const u8) *const anyopaque {
     return @ptrCast(*const anyopaque, struct {
-        fn f(arg: *anyopaque) callconv(.Win64) noreturn {
-            std.debug.print("Stub arg: {}\n", .{arg});
+        fn f() callconv(.Win64) noreturn {
             @panic("ntdll stub: " ++ str);
         }
     }.f);
