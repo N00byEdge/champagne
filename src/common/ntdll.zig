@@ -58,8 +58,25 @@ fn NtSetInformationProcess(
     return .SUCCESS;
 }
 
+fn RtlSetHeapInformation(
+    heap_handle: rt.PVOID,
+    heap_information_class: HEAP_INFORMATION_CLASS,
+    heap_information: rt.PVOID,
+    heap_information_length: rt.SIZE_T
+) callconv(.Win64) NTSTATUS {
+    log.info("RtlSetHeapInformation(handle={},class={s},info=0x{x},length={d})", .{heap_handle, @tagName(heap_information_class), heap_information, heap_information_length});
+    return .SUCCESS;
+}
+
 const NTSTATUS = enum(u32) {
     SUCCESS = 0x00000000,
+};
+
+const HEAP_INFORMATION_CLASS = enum(u32) {
+  HeapCompatibilityInformation = 0,
+  HeapEnableTerminationOnCorruption = 1,
+  HeapOptimizeResources = 3,
+  HeapTag
 };
 
 const ProcessInfoClass = enum(i32) {
@@ -324,7 +341,7 @@ pub const builtin_symbols = blk: {
         .{"EtwGetTraceEnableFlags", stub("EtwGetTraceEnableFlags") },
         .{"EtwRegisterTraceGuidsW", stub("EtwRegisterTraceGuidsW") },
         .{"NtDelayExecution", stub("NtDelayExecution") },
-        .{"RtlSetHeapInformation", stub("RtlSetHeapInformation") },
+        .{"RtlSetHeapInformation", RtlSetHeapInformation },
         .{"EtwEventRegister", stub("EtwEventRegister") },
         .{"TpAllocPool", stub("TpAllocPool") },
         .{"TpAllocAlpcCompletion", stub("TpAllocAlpcCompletion") },
