@@ -1,14 +1,171 @@
 const std = @import("std");
+const rt = @import("rt.zig");
+
+const log = std.log.scoped(.ntdll);
 
 // @TODO: https://github.com/ziglang/zig/issues/11585
 
 fn stub(comptime str: []const u8) *const anyopaque {
     return @ptrCast(*const anyopaque, struct {
-        fn f() noreturn {
+        fn f(arg: *anyopaque) callconv(.Win64) noreturn {
+            std.debug.print("Stub arg: {}\n", .{arg});
             @panic("ntdll stub: " ++ str);
         }
     }.f);
 }
+
+fn RtlNormalizeProcessParams(params: ?*rt.ProcessParameters) callconv(.Win64) void {
+    log.info("Normalizing params", .{});
+    if(params != &rt.pparam) {
+        @panic("Wrong pparams passed in!");
+    }
+}
+
+fn iswspace(chr: rt.WCHAR) callconv(.Win64) rt.BOOL {
+    //log.info("iswspace 0x{X} ('{c}')", .{chr, if(chr <= 0x7F) @truncate(u8, chr) else '!'});
+    if(chr > 0x7F) {
+        @panic("TODO: non-ascii");
+    }
+    if(std.ascii.isSpace(@intCast(u8, chr))) {
+        return rt.TRUE;
+    }
+    return rt.FALSE;
+}
+
+var rtl_global_heap = std.heap.GeneralPurposeAllocator(.{}){.backing_allocator = std.heap.page_allocator};
+
+fn RtlAllocateHeap(heap_handle: ?*anyopaque, flags: rt.ULONG, size: rt.SIZE_T) callconv(.Win64) ?*anyopaque {
+    log.info("RtlAllocateHeap(handle=0x{X},flags=0x{X},size=0x{X})", .{heap_handle, flags, size});
+    if(heap_handle) |_| {
+        @panic("RtlAllocateHeap with handle");
+    }
+
+    const retval = (rtl_global_heap.allocator().alloc(u8, size) catch |err| {
+        log.err("RtlAllocateHeap failed (error.{s})!", .{@errorName(err)});
+        return null;
+    }).ptr;
+
+    log.info("RtlAllocateHeap -> 0x{X}", .{@ptrToInt(retval)});
+    return retval;
+}
+
+fn NtSetInformationProcess(
+    process_handle: rt.HANDLE,
+    process_information_class: ProcessInfoClass,
+    process_information: rt.PVOID,
+    process_information_length: rt.ULONG,
+) callconv(.Win64) NTSTATUS {
+    log.info("NtSetInformationProcess(handle={},class={s},info=0x{x},length={d})", .{process_handle, @tagName(process_information_class), process_information, process_information_length});
+    return .SUCCESS;
+}
+
+const NTSTATUS = enum(u32) {
+    SUCCESS = 0x00000000,
+};
+
+const ProcessInfoClass = enum(i32) {
+  ProcessBasicInformation = 0x00,
+  ProcessQuotaLimits = 0x01,
+  ProcessIoCounters = 0x02,
+  ProcessVmCounters = 0x03,
+  ProcessTimes = 0x04,
+  ProcessBasePriority = 0x05,
+  ProcessRaisePriority = 0x06,
+  ProcessDebugPort = 0x07,
+  ProcessExceptionPort = 0x08,
+  ProcessAccessToken = 0x09,
+  ProcessLdtInformation = 0x0A,
+  ProcessLdtSize = 0x0B,
+  ProcessDefaultHardErrorMode = 0x0C,
+  ProcessIoPortHandlers = 0x0D,
+  ProcessPooledUsageAndLimits = 0x0E,
+  ProcessWorkingSetWatch = 0x0F,
+  ProcessUserModeIOPL = 0x10,
+  ProcessEnableAlignmentFaultFixup = 0x11,
+  ProcessPriorityClass = 0x12,
+  ProcessWx86Information = 0x13,
+  ProcessHandleCount = 0x14,
+  ProcessAffinityMask = 0x15,
+  ProcessPriorityBoost = 0x16,
+  ProcessDeviceMap = 0x17,
+  ProcessSessionInformation = 0x18,
+  ProcessForegroundInformation = 0x19,
+  ProcessWow64Information = 0x1A,
+  ProcessImageFileName = 0x1B,
+  ProcessLUIDDeviceMapsEnabled = 0x1C,
+  ProcessBreakOnTermination = 0x1D,
+  ProcessDebugObjectHandle = 0x1E,
+  ProcessDebugFlags = 0x1F,
+  ProcessHandleTracing = 0x20,
+  ProcessIoPriority = 0x21,
+  ProcessExecuteFlags = 0x22,
+  ProcessResourceManagement = 0x23,
+  ProcessCookie = 0x24,
+  ProcessImageInformation = 0x25,
+  ProcessCycleTime = 0x26,
+  ProcessPagePriority = 0x27,
+  ProcessInstrumentationCallback = 0x28,
+  ProcessThreadStackAllocation = 0x29,
+  ProcessWorkingSetWatchEx = 0x2A,
+  ProcessImageFileNameWin32 = 0x2B,
+  ProcessImageFileMapping = 0x2C,
+  ProcessAffinityUpdateMode = 0x2D,
+  ProcessMemoryAllocationMode = 0x2E,
+  ProcessGroupInformation = 0x2F,
+  ProcessTokenVirtualizationEnabled = 0x30,
+  ProcessConsoleHostProcess = 0x31,
+  ProcessWindowInformation = 0x32,
+  ProcessHandleInformation = 0x33,
+  ProcessMitigationPolicy = 0x34,
+  ProcessDynamicFunctionTableInformation = 0x35,
+  ProcessHandleCheckingMode = 0x36,
+  ProcessKeepAliveCount = 0x37,
+  ProcessRevokeFileHandles = 0x38,
+  ProcessWorkingSetControl = 0x39,
+  ProcessHandleTable = 0x3A,
+  ProcessCheckStackExtentsMode = 0x3B,
+  ProcessCommandLineInformation = 0x3C,
+  ProcessProtectionInformation = 0x3D,
+  ProcessMemoryExhaustion = 0x3E,
+  ProcessFaultInformation = 0x3F,
+  ProcessTelemetryIdInformation = 0x40,
+  ProcessCommitReleaseInformation = 0x41,
+  ProcessDefaultCpuSetsInformation = 0x42,
+  ProcessAllowedCpuSetsInformation = 0x43,
+  ProcessSubsystemProcess = 0x44,
+  ProcessJobMemoryInformation = 0x45,
+  ProcessInPrivate = 0x46,
+  ProcessRaiseUMExceptionOnInvalidHandleClose = 0x47,
+  ProcessIumChallengeResponse = 0x48,
+  ProcessChildProcessInformation = 0x49,
+  ProcessHighGraphicsPriorityInformation = 0x4A,
+  ProcessSubsystemInformation = 0x4B,
+  ProcessEnergyValues = 0x4C,
+  ProcessActivityThrottleState = 0x4D,
+  ProcessActivityThrottlePolicy = 0x4E,
+  ProcessWin32kSyscallFilterInformation = 0x4F,
+  ProcessDisableSystemAllowedCpuSets = 0x50,
+  ProcessWakeInformation = 0x51,
+  ProcessEnergyTrackingState = 0x52,
+  ProcessManageWritesToExecutableMemory = 0x53,
+  ProcessCaptureTrustletLiveDump = 0x54,
+  ProcessTelemetryCoverage = 0x55,
+  ProcessEnclaveInformation = 0x56,
+  ProcessEnableReadWriteVmLogging = 0x57,
+  ProcessUptimeInformation = 0x58,
+  ProcessImageSection = 0x59,
+  ProcessDebugAuthInformation = 0x5A,
+  ProcessSystemResourceManagement = 0x5B,
+  ProcessSequenceNumber = 0x5C,
+  ProcessLoaderDetour = 0x5D,
+  ProcessSecurityDomainInformation = 0x5E,
+  ProcessCombineSecurityDomainsInformation = 0x5F,
+  ProcessEnableLogging = 0x60,
+  ProcessLeapSecondInformation = 0x61,
+  ProcessFiberShadowStackAllocation = 0x62,
+  ProcessFreeFiberShadowStackAllocation = 0x63,
+  MaxProcessInfoClass = 0x64
+};
 
 pub const builtin_symbols = blk: {
     @setEvalBranchQuota(200000);
@@ -22,7 +179,7 @@ pub const builtin_symbols = blk: {
         .{"TpAllocTimer", stub("TpAllocTimer") },
         .{"TpSetTimer", stub("TpSetTimer") },
         .{"NtQuerySystemInformation", stub("NtQuerySystemInformation") },
-        .{"RtlAllocateHeap", stub("RtlAllocateHeap") },
+        .{"RtlAllocateHeap", RtlAllocateHeap },
         .{"RtlFreeHeap", stub("RtlFreeHeap") },
         .{"NtSetValueKey", stub("NtSetValueKey") },
         .{"RtlFreeUnicodeString", stub("RtlFreeUnicodeString") },
@@ -78,7 +235,7 @@ pub const builtin_symbols = blk: {
         .{"RtlLengthSid", stub("RtlLengthSid") },
         .{"NtCreateMutant", stub("NtCreateMutant") },
         .{"RtlCreateTagHeap", stub("RtlCreateTagHeap") },
-        .{"NtSetInformationProcess", stub("NtSetInformationProcess") },
+        .{"NtSetInformationProcess", NtSetInformationProcess },
         .{"NtAlpcCreatePort", stub("NtAlpcCreatePort") },
         .{"RtlInitializeBitMap", stub("RtlInitializeBitMap") },
         .{"RtlClearAllBits", stub("RtlClearAllBits") },
@@ -187,8 +344,8 @@ pub const builtin_symbols = blk: {
         .{"RtlVirtualUnwind", stub("RtlVirtualUnwind") },
         .{"RtlUnhandledExceptionFilter", stub("RtlUnhandledExceptionFilter") },
         .{"RtlCompareUnicodeStrings", stub("RtlCompareUnicodeStrings") },
-        .{"RtlNormalizeProcessParams", stub("RtlNormalizeProcessParams") },
-        .{"iswspace", stub("iswspace") },
+        .{"RtlNormalizeProcessParams", RtlNormalizeProcessParams },
+        .{"iswspace", iswspace },
         .{"RtlConnectToSm", stub("RtlConnectToSm") },
         .{"RtlSendMsgToSm", stub("RtlSendMsgToSm") },
         .{"NtQueryKey", stub("NtQueryKey") },
