@@ -194,6 +194,16 @@ fn RtlSetThreadIsCritical(
     return .SUCCESS;
 }
 
+const RtlSrwLock = extern struct {
+    ptr: rt.PVOID,
+};
+
+fn RtlInitializeSRWLock(
+    lock: ?*RtlSrwLock,
+) callconv(.Win64) void {
+    log.info("RtlInitializeSRWLock(0x{X})", .{@ptrToInt(lock)});
+}
+
 const Error = enum(rt.ULONG) {
     SUCCESS = 0x00000000,
 };
@@ -460,7 +470,7 @@ pub const builtin_symbols = blk: {
         .{"AlpcGetMessageAttribute", stub("AlpcGetMessageAttribute") },
         .{"NtAlpcCancelMessage", stub("NtAlpcCancelMessage") },
         .{"NtAlpcOpenSenderProcess", stub("NtAlpcOpenSenderProcess") },
-        .{"RtlInitializeSRWLock", stub("RtlInitializeSRWLock") },
+        .{"RtlInitializeSRWLock", RtlInitializeSRWLock },
         .{"NtAlpcAcceptConnectPort", stub("NtAlpcAcceptConnectPort") },
         .{"NtConnectPort", stub("NtConnectPort") },
         .{"NtRequestWaitReplyPort", stub("NtRequestWaitReplyPort") },
