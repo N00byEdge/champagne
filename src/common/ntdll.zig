@@ -118,7 +118,7 @@ fn EtwRegisterTraceGuidsW(
     m_of_resource_name: rt.LPCWSTR,
     registration_handle: ?*TraceHandle,
 ) callconv(.Win64) Error {
-    log.info("EtwRegisterTraceGuidsW(req_addr=0x{X}, req_cont=0x{X}, cguid={}, guidcnt={}, tguid={}, imgp={}, mrname={}, rhandle={})", .{
+    log.info("EtwRegisterTraceGuidsW(req_addr=0x{X}, req_cont=0x{X}, cguid={}, guidcnt={}, tguid={}, imgp={}, mrname={}, rhandle=0x{X})", .{
         @ptrToInt(request_address),
         @ptrToInt(request_context),
         control_guid,
