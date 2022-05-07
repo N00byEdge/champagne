@@ -84,8 +84,8 @@ pub const UnicodeString = extern struct {
 
     pub fn initFromBuffer(buf: [:0]WCHAR) UnicodeString {
         return .{
-            .length = @intCast(USHORT, buf.len),
-            .capacity = @intCast(USHORT, buf.len),
+            .length = @intCast(USHORT, buf.len * 2),
+            .capacity = @intCast(USHORT, buf.len * 2),
             .buffer = buf.ptr,
         };
     }
