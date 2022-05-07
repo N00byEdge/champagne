@@ -237,11 +237,8 @@ fn giveSystemInfo(ret_ptr: rt.PVOID, ret_max_size: rt.ULONG, ret_out_size: ?*rt.
     const copy_size = std.math.min(@sizeOf(T), ret_max_size);
     if(ret_out_size) |out|
         out.* = @intCast(rt.ULONG, copy_size);
-    if(ret_ptr) |r| {
-        @memcpy(@ptrCast([*]u8, r), @intToPtr([*]const u8, @ptrToInt(&T{})), copy_size);
-        return .SUCCESS;
-    }
-    return .INVALID_PARAMETER;
+    @memcpy(@ptrCast([*]u8, ret_ptr orelse return .INVALID_PARAMETER), @intToPtr([*]const u8, @ptrToInt(&T{})), copy_size);
+    return .SUCCESS;
 }
 
 fn NtQuerySystemInformation(
