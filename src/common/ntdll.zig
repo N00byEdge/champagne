@@ -61,7 +61,7 @@ fn NtSetInformationProcess(
 
 fn RtlSetHeapInformation(
     heap_handle: rt.PVOID,
-    heap_information_class: HEAP_INFORMATION_CLASS,
+    heap_information_class: HeapInformationClass,
     heap_information: rt.PVOID,
     heap_information_length: rt.SIZE_T
 ) callconv(.Win64) NTSTATUS {
@@ -139,7 +139,7 @@ const NTSTATUS = enum(u32) {
     SUCCESS = 0x00000000,
 };
 
-const HEAP_INFORMATION_CLASS = enum(u32) {
+const HeapInformationClass = enum(u32) {
   HeapCompatibilityInformation = 0,
   HeapEnableTerminationOnCorruption = 1,
   HeapOptimizeResources = 3,
