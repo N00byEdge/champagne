@@ -1,8 +1,9 @@
 const std = @import("std");
 
 pub const BOOL = i32;
-pub const FALSE = @as(BOOL, 0);
-pub const TRUE = @as(BOOL, 1);
+pub const LOGICAL = ULONG;
+pub const FALSE = 0;
+pub const TRUE = 1;
 
 pub const UCHAR = u8;
 pub const USHORT = u16;
