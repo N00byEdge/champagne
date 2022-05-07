@@ -49,6 +49,12 @@ fn RtlAllocateHeap(heap_handle: ?*anyopaque, flags: rt.ULONG, size: rt.SIZE_T) c
     return retval;
 }
 
+fn RtlFreeHeap(heap_handle: ?*anyopaque, flags: rt.ULONG, base_addr: ?[*]u8) callconv(.Win64) rt.LOGICAL {
+    // TODO: Don't just leak memory here
+    log.info("RtlFreeHeap(handle=0x{X}, flags = 0x{X}, ptr=0x{X})", .{@ptrToInt(heap_handle), flags, @ptrToInt(base_addr)});
+    return rt.TRUE;
+}
+
 fn NtSetInformationProcess(
     process_handle: rt.HANDLE,
     process_information_class: ProcessInfoClass,
@@ -424,7 +430,7 @@ pub const builtin_symbols = blk: {
         .{"TpSetTimer", stub("TpSetTimer") },
         .{"NtQuerySystemInformation", NtQuerySystemInformation },
         .{"RtlAllocateHeap", RtlAllocateHeap },
-        .{"RtlFreeHeap", stub("RtlFreeHeap") },
+        .{"RtlFreeHeap", RtlFreeHeap },
         .{"NtSetValueKey", stub("NtSetValueKey") },
         .{"RtlFreeUnicodeString", stub("RtlFreeUnicodeString") },
         .{"NtDeviceIoControlFile", stub("NtDeviceIoControlFile") },
