@@ -268,6 +268,14 @@ fn NtQuerySystemInformation(
     };
 }
 
+const ConditionVariable = rt.PVOID;
+
+fn RtlInitializeConditionVariable(
+    out_cvar: ?*ConditionVariable,
+) callconv(.Win64) void {
+    log.info("RtlInitializeConditionVariable(0x{X})", .{@ptrToInt(out_cvar)});
+}
+
 const Error = enum(rt.ULONG) {
     SUCCESS = 0x00000000,
 };
@@ -560,7 +568,7 @@ pub const builtin_symbols = blk: {
         .{"TpAllocAlpcCompletion", stub("TpAllocAlpcCompletion") },
         .{"NtWaitForMultipleObjects", stub("NtWaitForMultipleObjects") },
         .{"NtRaiseHardError", stub("NtRaiseHardError") },
-        .{"RtlInitializeConditionVariable", stub("RtlInitializeConditionVariable") },
+        .{"RtlInitializeConditionVariable", RtlInitializeConditionVariable },
         .{"NtClearEvent", stub("NtClearEvent") },
         .{"RtlUnicodeStringToAnsiString", stub("RtlUnicodeStringToAnsiString") },
         .{"NtQueryEvent", stub("NtQueryEvent") },
