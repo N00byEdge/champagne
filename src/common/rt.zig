@@ -16,7 +16,48 @@ pub const PVOID = ?*anyopaque;
 pub const HINSTANCE = ?*anyopaque;
 pub const HANDLE = ?*anyopaque;
 
+pub const LPCSTR = ?[*:0]const u8;
 pub const PWSTR = ?[*:0]WCHAR;
+pub const LPCWSTR = ?[*:0]const WCHAR;
+
+pub fn Fmt(comptime T: type) type {
+    return struct {
+        v: T,
+
+        pub fn format(
+            self: @This(),
+            comptime layout: []const u8,
+            opts: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
+            _ = layout;
+            _ = opts;
+            switch(T) {
+                LPCSTR, PWSTR, LPCWSTR => {
+                    if(self.v) |v| {
+                        const span = std.mem.span(v);
+                        try writer.print("'", .{});
+                        for(span) |chr| {
+                            if(chr > 0x7F) {
+                                try writer.print("\\x{X:0>2}", .{chr});
+                            } else {
+                                try writer.print("{c}", .{@truncate(u8, chr)});
+                            }
+                        }
+                        try writer.print("'", .{});
+                    } else {
+                        try writer.print("(null)", .{});
+                    }
+                },
+                else => @compileError("rt.fmt not implemented for type " ++ @typeName(T) ++ " yet!"),
+            }
+        }
+    };
+}
+
+pub fn fmt(val: anytype) Fmt(@TypeOf(val)) {
+    return Fmt(@TypeOf(val)){.v = val};
+}
 
 pub const LPCGUID = ?*const @import("guids.zig").GUID;
 

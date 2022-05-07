@@ -81,6 +81,56 @@ fn EtwEventRegister(
     return .SUCCESS;
 }
 
+const WmidPRequestCode = enum(u32) {
+    GetAllData = 0,
+    GetSingleInstance = 1,
+    SetSingleInstance = 2,
+    SetSingleItem = 3,
+    EnableEvents = 4,
+    DisableEvents = 5,
+    EnableCollection = 6,
+    DisableCollection = 7,
+    RegInfo = 8,
+    ExecuteMethod = 9,
+};
+
+const WMidPRequest = fn(
+    request_code: WmidPRequestCode,
+    request_context: rt.PVOID,
+    buffer_size: ?*rt.ULONG,
+    buffer: rt.PVOID,
+) callconv(.Win64) rt.ULONG;
+
+const TraceGuidRegistration = extern struct {
+    guid: rt.LPCGUID,
+    handle: rt.HANDLE,
+};
+
+const TraceHandle = rt.HANDLE;
+
+fn EtwRegisterTraceGuidsW(
+    request_address: WMidPRequest,
+    request_context: rt.PVOID,
+    control_guid: rt.LPCGUID,
+    guid_count: rt.ULONG,
+    trace_guid_registration: ?*TraceGuidRegistration,
+    m_of_image_path: rt.LPCWSTR,
+    m_of_resource_name: rt.LPCWSTR,
+    registration_handle: ?*TraceHandle,
+) callconv(.Win64) Error {
+    log.info("EtwRegisterTraceGuidsW(req_addr=0x{X}, req_cont=0x{X}, cguid={}, guidcnt={}, tguid={}, imgp={}, mrname={}, rhandle={})", .{
+        @ptrToInt(request_address),
+        @ptrToInt(request_context),
+        control_guid,
+        guid_count,
+        trace_guid_registration,
+        rt.fmt(m_of_image_path),
+        rt.fmt(m_of_resource_name),
+        @ptrToInt(registration_handle),
+    });
+    return .SUCCESS;
+}
+
 const Error = enum(rt.ULONG) {
     SUCCESS = 0x00000000,
 };
@@ -356,7 +406,7 @@ pub const builtin_symbols = blk: {
         .{"EtwGetTraceLoggerHandle", stub("EtwGetTraceLoggerHandle") },
         .{"EtwGetTraceEnableLevel", stub("EtwGetTraceEnableLevel") },
         .{"EtwGetTraceEnableFlags", stub("EtwGetTraceEnableFlags") },
-        .{"EtwRegisterTraceGuidsW", stub("EtwRegisterTraceGuidsW") },
+        .{"EtwRegisterTraceGuidsW", EtwRegisterTraceGuidsW },
         .{"NtDelayExecution", stub("NtDelayExecution") },
         .{"RtlSetHeapInformation", RtlSetHeapInformation },
         .{"EtwEventRegister", EtwEventRegister },
