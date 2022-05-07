@@ -51,6 +51,13 @@ pub fn Fmt(comptime T: type) type {
                         try writer.print("(null)", .{});
                     }
                 },
+                BOOL => {
+                    if(self.v != FALSE) {
+                        try writer.print("TRUE", .{});
+                    } else {
+                        try writer.print("FALSE", .{});
+                    }
+                },
                 else => @compileError("rt.fmt not implemented for type " ++ @typeName(T) ++ " yet!"),
             }
         }

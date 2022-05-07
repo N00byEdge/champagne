@@ -184,6 +184,16 @@ fn RtlInitUnicodeStringEx(
     return .SUCCESS;
 }
 
+fn RtlSetThreadIsCritical(
+    new_value: rt.BOOL,
+    old_value: ?*rt.BOOL,
+    check_flag: rt.BOOL,
+) callconv(.Win64) NTSTATUS {
+    if(old_value) |o| o.* = rt.FALSE;
+    log.info("RtlSetThreadIsCritical({},check_flag={})", .{rt.fmt(new_value), rt.fmt(check_flag)});
+    return .SUCCESS;
+}
+
 const Error = enum(rt.ULONG) {
     SUCCESS = 0x00000000,
 };
@@ -444,7 +454,7 @@ pub const builtin_symbols = blk: {
         .{"NtQueryInformationToken", stub("NtQueryInformationToken") },
         .{"NtSetInformationThread", stub("NtSetInformationThread") },
         .{"TpSetPoolMinThreads", stub("TpSetPoolMinThreads") },
-        .{"RtlSetThreadIsCritical", stub("RtlSetThreadIsCritical") },
+        .{"RtlSetThreadIsCritical", RtlSetThreadIsCritical },
         .{"AlpcInitializeMessageAttribute", stub("AlpcInitializeMessageAttribute") },
         .{"NtAlpcSendWaitReceivePort", stub("NtAlpcSendWaitReceivePort") },
         .{"AlpcGetMessageAttribute", stub("AlpcGetMessageAttribute") },
