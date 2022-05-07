@@ -335,6 +335,18 @@ fn NtRaiseHardError(
     return .SUCCESS;
 }
 
+fn RtlCreateSecurityDescriptor(
+    desc_out: ?*SecurityDescriptor,
+    revision: rt.ULONG,
+) callconv(.Win64) NTSTATUS {
+    log.info("RtlCreateSecurityDescriptor()", .{});
+    const desc = desc_out orelse return .INVALID_PARAMETER;
+    desc.* = .{
+        .revision = @intCast(u8, revision),
+    };
+    return .SUCCESS;
+}
+
 const Error = enum(rt.ULONG) {
     SUCCESS = 0x00000000,
 };
@@ -348,6 +360,35 @@ const NTSTATUS = enum(u32) {
     INVALID_PARAMETER = 0xC000000D,
     NO_MEMORY = 0xC0000017,
     SYSTEM_PROCESS_TERMINATED = 0xC000021A,
+};
+
+const SecurityDescriptor = extern struct {
+    revision: u8,
+    sbz1: u8 = 0,
+    control: SecurityDescriptorControl = 0,
+    owner: ?*SecurityIdentifier = null,
+    group: ?*SecurityIdentifier = null,
+    sacl: ?*AccessControlList = null,
+    dacl: ?*AccessControlList = null,
+};
+
+const SecurityDescriptorControl = rt.WORD;
+
+const SecurityIdentifier = extern struct {
+    revision: u8,
+    sub_authority_count: u8,
+    identifier_authority: SecurityIdentifierAuthority,
+    // Also has trailing things at end if nonzero subauthority count
+};
+
+const SecurityIdentifierAuthority = [6]u8;
+
+const AccessControlList = struct {
+    revision: u8,
+    sbz1: u8,
+    acl_size: rt.WORD,
+    ace_count: rt.WORD,
+    sbz2: rt.WORD,
 };
 
 const HardErrorResponseOption = enum(u32) {
@@ -570,7 +611,7 @@ pub const builtin_symbols = blk: {
         .{"NtSerializeBoot", stub("NtSerializeBoot") },
         .{"RtlUnicodeStringToInteger", stub("RtlUnicodeStringToInteger") },
         .{"RtlAllocateAndInitializeSid", stub("RtlAllocateAndInitializeSid") },
-        .{"RtlCreateSecurityDescriptor", stub("RtlCreateSecurityDescriptor") },
+        .{"RtlCreateSecurityDescriptor", RtlCreateSecurityDescriptor },
         .{"RtlCreateAcl", stub("RtlCreateAcl") },
         .{"RtlAddAccessAllowedAce", stub("RtlAddAccessAllowedAce") },
         .{"RtlSetDaclSecurityDescriptor", stub("RtlSetDaclSecurityDescriptor") },

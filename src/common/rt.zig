@@ -6,6 +6,7 @@ pub const FALSE = 0;
 pub const TRUE = 1;
 
 pub const UCHAR = u8;
+pub const WORD = u16;
 pub const USHORT = u16;
 pub const ULONG = u32;
 pub const SIZE_T = u32;
