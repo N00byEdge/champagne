@@ -107,6 +107,26 @@ pub const UnicodeString = extern struct {
             .buffer = buf.ptr,
         };
     }
+
+    pub fn format(
+        self: @This(),
+        comptime layout: []const u8,
+        opts: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = layout;
+        _ = opts;
+        const span = self.buffer.?[0..self.length];
+        try writer.print("'", .{});
+        for(span) |chr| {
+            if(chr > 0x7F) {
+                try writer.print("\\x{X:0>2}", .{chr});
+            } else {
+                try writer.print("{c}", .{@truncate(u8, chr)});
+            }
+        }
+        try writer.print("'", .{});
+    }
 };
 
 pub const ProcessParameters = extern struct {
