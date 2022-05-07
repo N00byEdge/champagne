@@ -223,6 +223,54 @@ fn RtlInitializeSRWLock(
     log.info("RtlInitializeSRWLock(0x{X})", .{@ptrToInt(lock)});
 }
 
+fn RtlCreateTagHeap(
+    heap_handle: rt.HANDLE,
+    flags: rt.ULONG,
+    tag_name: rt.PWSTR,
+    tag_sub_name: rt.PWSTR,
+) callconv(.Win64) Error {
+    log.info("RtlCreateTagHeap(handle=0x{X}, flags=0x{X}, tag_name={}, tag_sub_name={})", .{@ptrToInt(heap_handle), flags, rt.fmt(tag_name), rt.fmt(tag_sub_name)});
+    return .SUCCESS;
+}
+
+fn giveSystemInfo(ret_ptr: rt.PVOID, ret_max_size: rt.ULONG, ret_out_size: ?*rt.ULONG, comptime T: type) NTSTATUS {
+    const copy_size = std.math.min(@sizeOf(T), ret_max_size);
+    if(ret_out_size) |out|
+        out.* = @intCast(rt.ULONG, copy_size);
+    if(ret_ptr) |r| {
+        @memcpy(@ptrCast([*]u8, r), @intToPtr([*]const u8, @ptrToInt(&T{})), copy_size);
+        return .SUCCESS;
+    }
+    return .INVALID_PARAMETER;
+}
+
+fn NtQuerySystemInformation(
+    class: SystemInformationClass,
+    ret_ptr: rt.PVOID,
+    ret_max_size: rt.ULONG,
+    ret_out_size: ?*rt.ULONG,
+) callconv(.Win64) NTSTATUS {
+    _ = ret_ptr;
+    _ = ret_max_size;
+    _ = ret_out_size;
+    log.info("NtQuerySystemInformation(class=0x{X} ('{s}'), max_size=0x{X})", .{@enumToInt(class), @tagName(class), ret_max_size});
+    return switch(class) {
+        .Basic => giveSystemInfo(ret_ptr, ret_max_size, ret_out_size, extern struct {
+            reserved: rt.ULONG = 0,
+            timer_resolution: rt.ULONG = 1_000_000_000,
+            page_size: rt.ULONG = 0x1000,
+            number_of_physical_pages: rt.ULONG = 1729,
+            lowest_physical_page_number: rt.ULONG = 1,
+            highest_physical_page_number: rt.ULONG = 1729,
+            allocation_granularity: rt.ULONG = 8,
+            minimum_user_mode_address: usize = 0x10000,
+            maximum_user_mode_address: usize = 0x7ff80000,
+            active_processors_affinity_mask: usize = 1 << 0,
+            number_of_processors: usize = 1,
+        }),
+    };
+}
+
 const Error = enum(rt.ULONG) {
     SUCCESS = 0x00000000,
 };
@@ -232,6 +280,12 @@ const NTSTATUS = enum(u32) {
 
     INVALID_PARAMETER = 0xC000000D,
     NO_MEMORY = 0xC0000017,
+};
+
+const SystemInformationClass = enum(u32) {
+    Basic = 0,
+    //Processor = 1,
+    //Performance = 2,
 };
 
 const HeapInformationClass = enum(u32) {
@@ -356,7 +410,7 @@ pub const builtin_symbols = blk: {
         .{"NtClose", stub("NtClose") },
         .{"TpAllocTimer", stub("TpAllocTimer") },
         .{"TpSetTimer", stub("TpSetTimer") },
-        .{"NtQuerySystemInformation", stub("NtQuerySystemInformation") },
+        .{"NtQuerySystemInformation", NtQuerySystemInformation },
         .{"RtlAllocateHeap", RtlAllocateHeap },
         .{"RtlFreeHeap", stub("RtlFreeHeap") },
         .{"NtSetValueKey", stub("NtSetValueKey") },
@@ -412,7 +466,7 @@ pub const builtin_symbols = blk: {
         .{"RtlFreeSid", stub("RtlFreeSid") },
         .{"RtlLengthSid", stub("RtlLengthSid") },
         .{"NtCreateMutant", stub("NtCreateMutant") },
-        .{"RtlCreateTagHeap", stub("RtlCreateTagHeap") },
+        .{"RtlCreateTagHeap", RtlCreateTagHeap },
         .{"NtSetInformationProcess", NtSetInformationProcess },
         .{"NtAlpcCreatePort", stub("NtAlpcCreatePort") },
         .{"RtlInitializeBitMap", stub("RtlInitializeBitMap") },
