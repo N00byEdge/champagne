@@ -17,7 +17,9 @@ pub const HINSTANCE = ?*anyopaque;
 pub const HANDLE = ?*anyopaque;
 
 pub const LPCSTR = ?[*:0]const u8;
+
 pub const PWSTR = ?[*:0]WCHAR;
+pub const PCWSTR = ?[*:0]const WCHAR;
 pub const LPCWSTR = ?[*:0]const WCHAR;
 
 pub fn Fmt(comptime T: type) type {

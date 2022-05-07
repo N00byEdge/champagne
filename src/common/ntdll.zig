@@ -131,12 +131,68 @@ fn EtwRegisterTraceGuidsW(
     return .SUCCESS;
 }
 
+const JobObjectInfoClass = enum(u32) {
+    BasicAccountingInformation = 1,
+    BasicLimitInformation = 2,
+    BasicProcessIdList = 3,
+    BasicUIRestrictions = 4,
+    SecurityLimitInformation = 5,
+    EndOfJobTimeInformation = 6,
+    AssociateCompletionPortInformation = 7,
+    BasicAndIoAccountingInformation = 8,
+    ExtendedLimitInformation = 9,
+    JobSetInformation = 10,
+    GroupInformation = 11,
+    NotificationLimitInformation = 12,
+    LimitViolationInformation = 13,
+    GroupInformationEx = 14,
+    CpuRateControlInformation = 15,
+    CompletionFilter = 16,
+    CompletionCounter = 17,
+
+    NetRateControlInformation = 32,
+    JobObjectNotificationLimitInformation2 = 33,
+    JobObjectLimitViolationInformation2 = 34,
+    JobObjectCreateSilo = 35,
+    JobObjectSiloBasicInformation = 36,
+
+    Unk_39 = 39,
+};
+
+fn NtQueryInformationJobObject(
+    handle: rt.HANDLE,
+    class: JobObjectInfoClass,
+    len: rt.ULONG,
+    ret_len: ?*rt.ULONG,
+) callconv(.Win64) NTSTATUS {
+    log.info("NtQueryInformationJobObject(handle=0x{X}, class={s}, len=0x{x}, ret_len={d})", .{@ptrToInt(handle), @tagName(class), len, ret_len});
+    return .SUCCESS;
+}
+
+var rtl_unicode_string_ex_heap = std.heap.GeneralPurposeAllocator(.{}){.backing_allocator = std.heap.page_allocator};
+
+fn RtlInitUnicodeStringEx(
+    dest: ?*rt.UnicodeString,
+    src: rt.PCWSTR,
+) callconv(.Win64) NTSTATUS {
+    log.info("RtlInitUnicodeStringEx({})", .{rt.fmt(src)});
+    const str = src orelse return .INVALID_PARAMETER;
+    (dest orelse return .INVALID_PARAMETER).* =
+        rt.UnicodeString.initFromBuffer(
+            rtl_unicode_string_ex_heap.allocator().dupeZ(u16, std.mem.span(str)) catch return .NO_MEMORY
+        );
+    return .SUCCESS;
+}
+
 const Error = enum(rt.ULONG) {
     SUCCESS = 0x00000000,
 };
 
 const NTSTATUS = enum(u32) {
     SUCCESS = 0x00000000,
+
+    INVALID_PARAMETER = 0xC000000D,
+    NO_MEMORY = 0xC0000017,
 };
 
 const HeapInformationClass = enum(u32) {
@@ -273,7 +329,7 @@ pub const builtin_symbols = blk: {
         .{"NtOpenFile", stub("NtOpenFile") },
         .{"NtQueryVolumeInformationFile", stub("NtQueryVolumeInformationFile") },
         .{"NtQueryInformationProcess", stub("NtQueryInformationProcess") },
-        .{"RtlInitUnicodeStringEx", stub("RtlInitUnicodeStringEx") },
+        .{"RtlInitUnicodeStringEx", RtlInitUnicodeStringEx },
         .{"_vsnwprintf_s", stub("_vsnwprintf_s") },
         .{"NtCreatePagingFile", stub("NtCreatePagingFile") },
         .{"NtSetSystemInformation", stub("NtSetSystemInformation") },
@@ -362,7 +418,7 @@ pub const builtin_symbols = blk: {
         .{"NtMapViewOfSection", stub("NtMapViewOfSection") },
         .{"NtUnmapViewOfSection", stub("NtUnmapViewOfSection") },
         .{"NtDuplicateObject", stub("NtDuplicateObject") },
-        .{"NtQueryInformationJobObject", stub("NtQueryInformationJobObject") },
+        .{"NtQueryInformationJobObject", NtQueryInformationJobObject },
         .{"iswctype", stub("iswctype") },
         .{"RtlQueryEnvironmentVariable_U", stub("RtlQueryEnvironmentVariable_U") },
         .{"RtlDosSearchPath_U", stub("RtlDosSearchPath_U") },
