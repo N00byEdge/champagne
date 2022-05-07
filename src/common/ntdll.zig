@@ -1,5 +1,6 @@
 const std = @import("std");
 const rt = @import("rt.zig");
+const guids = @import("guids.zig");
 
 const log = std.log.scoped(.ntdll);
 
@@ -64,9 +65,25 @@ fn RtlSetHeapInformation(
     heap_information: rt.PVOID,
     heap_information_length: rt.SIZE_T
 ) callconv(.Win64) NTSTATUS {
-    log.info("RtlSetHeapInformation(handle={},class={s},info=0x{x},length={d})", .{heap_handle, @tagName(heap_information_class), heap_information, heap_information_length});
+    log.info("RtlSetHeapInformation(handle=0x{X}, class={s}, info=0x{x}, length={d})", .{@ptrToInt(heap_handle), @tagName(heap_information_class), @ptrToInt(heap_information), heap_information_length});
     return .SUCCESS;
 }
+
+const REGHANDLE = u64;
+
+fn EtwEventRegister(
+    provider_id: rt.LPCGUID,
+    callback: rt.EnableCallback,
+    callback_context: rt.PVOID,
+    result_handle: ?*REGHANDLE,
+) callconv(.Win64) Error {
+    log.info("EtwEventRegister(guid={}, callback=0x{X}, context=0x{x}, result_out=0x{X})", .{provider_id, @ptrToInt(callback), @ptrToInt(callback_context), @ptrToInt(result_handle)});
+    return .SUCCESS;
+}
+
+const Error = enum(rt.ULONG) {
+    SUCCESS = 0x00000000,
+};
 
 const NTSTATUS = enum(u32) {
     SUCCESS = 0x00000000,
@@ -342,7 +359,7 @@ pub const builtin_symbols = blk: {
         .{"EtwRegisterTraceGuidsW", stub("EtwRegisterTraceGuidsW") },
         .{"NtDelayExecution", stub("NtDelayExecution") },
         .{"RtlSetHeapInformation", RtlSetHeapInformation },
-        .{"EtwEventRegister", stub("EtwEventRegister") },
+        .{"EtwEventRegister", EtwEventRegister },
         .{"TpAllocPool", stub("TpAllocPool") },
         .{"TpAllocAlpcCompletion", stub("TpAllocAlpcCompletion") },
         .{"NtWaitForMultipleObjects", stub("NtWaitForMultipleObjects") },

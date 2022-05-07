@@ -4,9 +4,11 @@ pub const BOOL = i32;
 pub const FALSE = @as(BOOL, 0);
 pub const TRUE = @as(BOOL, 1);
 
+pub const UCHAR = u8;
 pub const USHORT = u16;
 pub const ULONG = u32;
 pub const SIZE_T = u32;
+pub const ULONGLONG = u64;
 
 pub const WCHAR = u16;
 
@@ -15,6 +17,24 @@ pub const HINSTANCE = ?*anyopaque;
 pub const HANDLE = ?*anyopaque;
 
 pub const PWSTR = ?[*:0]WCHAR;
+
+pub const LPCGUID = ?*const @import("guids.zig").GUID;
+
+pub const EventFilterDescriptor = extern struct {
+    ptr: ULONGLONG,
+    size: ULONG,
+    type: ULONG,
+};
+
+pub const EnableCallback = fn (
+    source: LPCGUID,
+    is_enabled: ULONG,
+    level: UCHAR,
+    match_any_keyword: ULONGLONG,
+    match_all_keyword: ULONGLONG,
+    filter_data: ?*EventFilterDescriptor,
+    callback_context: PVOID,
+) callconv(.Win64) void;
 
 pub const UnicodeString = extern struct {
     length: USHORT,
