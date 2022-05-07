@@ -2,7 +2,7 @@ const std = @import("std");
 
 const rt = @import("rt.zig");
 
-pub const GUID = struct {
+pub const GUID = extern struct {
     data1: rt.ULONG,
     data2: rt.USHORT,
     data3: rt.USHORT,
