@@ -320,6 +320,21 @@ fn RtlAdjustPrivilege(
     }
 }
 
+fn NtRaiseHardError(
+    error_status: NTSTATUS,
+    num_params: rt.ULONG,
+    unicode_string_parameter_mask: ?*rt.UnicodeString,
+    params: rt.PVOID,
+    response_option: HardErrorResponseOption,
+    response: ?*HardErrorResponse,
+) callconv(.Win64) NTSTATUS {
+    _ = params;
+    _ = unicode_string_parameter_mask;
+    log.err("NtRaiseHardError(status=0x{X}, params={d}, ropt={s})", .{@enumToInt(error_status), num_params, @tagName(response_option)});
+    if(response) |r| r.* = .NotHandled;
+    return .SUCCESS;
+}
+
 const Error = enum(rt.ULONG) {
     SUCCESS = 0x00000000,
 };
@@ -332,6 +347,29 @@ const NTSTATUS = enum(u32) {
     INFO_LENGTH_MISMATCH = 0xC0000004,
     INVALID_PARAMETER = 0xC000000D,
     NO_MEMORY = 0xC0000017,
+    SYSTEM_PROCESS_TERMINATED = 0xC000021A,
+};
+
+const HardErrorResponseOption = enum(u32) {
+    AbortRetryIgnore,
+    Ok,
+    OkCancel,
+    RetryCancel,
+    YesNo,
+    YesNoCancel,
+    ShutdownSystem,
+};
+
+const HardErrorResponse = enum(u32) {
+    ReturnToCaller,
+    NotHandled,
+    Abort,
+    Cancel,
+    Ignore,
+    No,
+    Ok,
+    Retry,
+    Yes,
 };
 
 const SystemInformationClass = enum(u32) {
@@ -653,7 +691,7 @@ pub const builtin_symbols = blk: {
         .{"TpAllocPool", TpAllocPool },
         .{"TpAllocAlpcCompletion", stub("TpAllocAlpcCompletion") },
         .{"NtWaitForMultipleObjects", stub("NtWaitForMultipleObjects") },
-        .{"NtRaiseHardError", stub("NtRaiseHardError") },
+        .{"NtRaiseHardError", NtRaiseHardError },
         .{"RtlInitializeConditionVariable", RtlInitializeConditionVariable },
         .{"NtClearEvent", stub("NtClearEvent") },
         .{"RtlUnicodeStringToAnsiString", stub("RtlUnicodeStringToAnsiString") },
