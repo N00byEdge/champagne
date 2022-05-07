@@ -305,6 +305,21 @@ fn RtlInitializeConditionVariable(
     log.info("RtlInitializeConditionVariable(0x{X})", .{@ptrToInt(out_cvar)});
 }
 
+fn RtlAdjustPrivilege(
+    priv: Privilege,
+    enable: rt.BOOL,
+    current_thread: rt.BOOL,
+    enabled: ?*rt.BOOL,
+) callconv(.Win64) NTSTATUS {
+    log.info("RtlAdjustPrivilege(priv={s}, enable=0x{X})", .{@tagName(priv), enable});
+    _ = current_thread;
+    if(enabled) |e| e.* = rt.TRUE;
+    switch(priv) {
+        .Shutdown => return .SUCCESS,
+        else => return .INVALID_PARAMETER,
+    }
+}
+
 const Error = enum(rt.ULONG) {
     SUCCESS = 0x00000000,
 };
@@ -324,6 +339,44 @@ const SystemInformationClass = enum(u32) {
     //Processor = 1,
     //Performance = 2,
     SystemManufacturingInformation = 0x9D,
+};
+
+const Privilege = enum(rt.ULONG) {
+    CreateToken = 1,
+    AssignPrimaryToken = 2,
+    LockMemory = 3,
+    IncreaseQuota = 4,
+    UnsolicitedInput = 5,
+    MachineAccount = 6,
+    Tcb = 7,
+    Security = 8,
+    TakeOwnership = 9,
+    LoadDriver = 10,
+    SystemProfile = 11,
+    Systemtime = 12,
+    ProfileSingleProcess = 13,
+    IncreaseBasePriority = 14,
+    CreatePagefile = 15,
+    CreatePermanent = 16,
+    Backup = 17,
+    Restore = 18,
+    Shutdown = 19,
+    Debug = 20,
+    Audit = 21,
+    SystemEnvironment = 22,
+    ChangeNotify = 23,
+    RemoteShutdown = 24,
+    Undock = 25,
+    SyncAgent = 26,
+    EnableDelegation = 27,
+    ManageVolume = 28,
+    Impersonate = 29,
+    CreateGlobal = 30,
+    TrustedCredManAccess = 31,
+    Relabel = 32,
+    IncreaseWorkingSet = 33,
+    TimeZone = 34,
+    CreateSymbolicLink = 35
 };
 
 const HeapInformationClass = enum(u32) {
@@ -500,7 +553,7 @@ pub const builtin_symbols = blk: {
         .{"RtlCopyUnicodeString", stub("RtlCopyUnicodeString") },
         .{"RtlAddMandatoryAce", stub("RtlAddMandatoryAce") },
         .{"RtlSetSaclSecurityDescriptor", stub("RtlSetSaclSecurityDescriptor") },
-        .{"RtlAdjustPrivilege", stub("RtlAdjustPrivilege") },
+        .{"RtlAdjustPrivilege", RtlAdjustPrivilege },
         .{"RtlFreeSid", stub("RtlFreeSid") },
         .{"RtlLengthSid", stub("RtlLengthSid") },
         .{"NtCreateMutant", stub("NtCreateMutant") },
