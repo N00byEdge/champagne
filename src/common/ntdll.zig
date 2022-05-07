@@ -131,6 +131,25 @@ fn EtwRegisterTraceGuidsW(
     return .SUCCESS;
 }
 
+fn TpAllocPool(
+    opt_result: ?[*]rt.PVOID,
+    reserved: rt.PVOID,
+) callconv(.Win64) NTSTATUS {
+    const result = opt_result orelse return .INVALID_PARAMETER;
+    log.info("TpAllocPool(0x{X}) -> 0x41414141", .{@ptrToInt(result)});
+    result.* = @intToPtr(rt.PVOID, 0x41414141);
+    _ = reserved;
+    return .SUCCESS;
+}
+
+fn TpSetPoolMinThreads(
+    tp: rt.PVOID,
+    min_threads: rt.ULONG,
+) callconv(.Win64) NTSTATUS {
+    log.info("TpSetPoolMinThreads(0x{X}, {d})", .{@ptrToInt(tp orelse return .INVALID_PARAMETER), min_threads});
+    return .SUCCESS;
+}
+
 const JobObjectInfoClass = enum(u32) {
     BasicAccountingInformation = 1,
     BasicLimitInformation = 2,
@@ -463,7 +482,7 @@ pub const builtin_symbols = blk: {
         .{"NtOpenThreadToken", stub("NtOpenThreadToken") },
         .{"NtQueryInformationToken", stub("NtQueryInformationToken") },
         .{"NtSetInformationThread", stub("NtSetInformationThread") },
-        .{"TpSetPoolMinThreads", stub("TpSetPoolMinThreads") },
+        .{"TpSetPoolMinThreads", TpSetPoolMinThreads },
         .{"RtlSetThreadIsCritical", RtlSetThreadIsCritical },
         .{"AlpcInitializeMessageAttribute", stub("AlpcInitializeMessageAttribute") },
         .{"NtAlpcSendWaitReceivePort", stub("NtAlpcSendWaitReceivePort") },
@@ -486,7 +505,7 @@ pub const builtin_symbols = blk: {
         .{"NtDelayExecution", stub("NtDelayExecution") },
         .{"RtlSetHeapInformation", RtlSetHeapInformation },
         .{"EtwEventRegister", EtwEventRegister },
-        .{"TpAllocPool", stub("TpAllocPool") },
+        .{"TpAllocPool", TpAllocPool },
         .{"TpAllocAlpcCompletion", stub("TpAllocAlpcCompletion") },
         .{"NtWaitForMultipleObjects", stub("NtWaitForMultipleObjects") },
         .{"NtRaiseHardError", stub("NtRaiseHardError") },
