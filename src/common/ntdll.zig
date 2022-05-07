@@ -209,6 +209,15 @@ fn RtlInitUnicodeStringEx(
     return .SUCCESS;
 }
 
+fn RtlInitUnicodeString(
+    dest: ?*rt.UnicodeString,
+    src: rt.PCWSTR,
+) callconv(.Win64) void {
+    if(RtlInitUnicodeStringEx(dest, src) != .SUCCESS) {
+        log.err("RtlInitUnicodeString: RtlInitUnicodeStringEx failed!", .{});
+    }
+}
+
 fn RtlSetThreadIsCritical(
     new_value: rt.BOOL,
     old_value: ?*rt.BOOL,
@@ -435,7 +444,7 @@ pub const builtin_symbols = blk: {
         .{"RtlFreeUnicodeString", stub("RtlFreeUnicodeString") },
         .{"NtDeviceIoControlFile", stub("NtDeviceIoControlFile") },
         .{"NtQueryValueKey", stub("NtQueryValueKey") },
-        .{"RtlInitUnicodeString", stub("RtlInitUnicodeString") },
+        .{"RtlInitUnicodeString", RtlInitUnicodeString },
         .{"RtlPrefixUnicodeString", stub("RtlPrefixUnicodeString") },
         .{"NtOpenFile", stub("NtOpenFile") },
         .{"NtQueryVolumeInformationFile", stub("NtQueryVolumeInformationFile") },
