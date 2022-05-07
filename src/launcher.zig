@@ -29,17 +29,8 @@ const ResolveContext = struct {
     }
 };
 
-pub fn toNullTerminatedUTF16Buffer(comptime ascii: []const u8) [ascii.len:0]u16 {
-    comptime var result: []const u16 = &[_]u16{};
-    inline for(ascii) |chr| {
-        result = result ++ &[_]u16{chr};
-    }
-    result = result ++ [_]u16{0};
-    return result[0..ascii.len:0].*;
-}
-
-var smss_path = toNullTerminatedUTF16Buffer("C:\\Windows\\system32\\smss.exe");
-var smss_command_line = toNullTerminatedUTF16Buffer("C:\\Windows\\system32\\smss.exe");
+var smss_path = rt.toNullTerminatedUTF16Buffer("C:\\Windows\\system32\\smss.exe");
+var smss_command_line = rt.toNullTerminatedUTF16Buffer("C:\\Windows\\system32\\smss.exe");
 
 pub fn main() !void {
     try rt.init(&smss_path, &smss_command_line);

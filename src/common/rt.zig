@@ -64,6 +64,15 @@ pub fn Fmt(comptime T: type) type {
     };
 }
 
+pub fn toNullTerminatedUTF16Buffer(comptime ascii: []const u8) [ascii.len:0]u16 {
+    comptime var result: []const u16 = &[_]u16{};
+    inline for(ascii) |chr| {
+        result = result ++ &[_]u16{chr};
+    }
+    result = result ++ [_]u16{0};
+    return result[0..ascii.len:0].*;
+}
+
 pub fn fmt(val: anytype) Fmt(@TypeOf(val)) {
     return Fmt(@TypeOf(val)){.v = val};
 }
