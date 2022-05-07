@@ -251,9 +251,17 @@ fn RtlCreateTagHeap(
 fn giveSystemInfo(ret_ptr: rt.PVOID, ret_max_size: rt.ULONG, ret_out_size: ?*rt.ULONG, comptime T: type) NTSTATUS {
     const copy_size = std.math.min(@sizeOf(T), ret_max_size);
     if(ret_out_size) |out|
-        out.* = @intCast(rt.ULONG, copy_size);
-    @memcpy(@ptrCast([*]u8, ret_ptr orelse return .INVALID_PARAMETER), @intToPtr([*]const u8, @ptrToInt(&T{})), copy_size);
-    return .SUCCESS;
+        out.* = @intCast(rt.ULONG, @sizeOf(T));
+
+    if(ret_ptr) |p| {
+        @memcpy(@ptrCast([*]u8, p), @intToPtr([*]const u8, @ptrToInt(&T{})), copy_size);
+    }
+
+    if(ret_max_size < @sizeOf(T)) {
+        return .INFO_LENGTH_MISMATCH;
+    } else {
+        return .SUCCESS;
+    }
 }
 
 var manufacturer_profile_name = rt.toNullTerminatedUTF16Buffer("Champagne-SYSTEM");
@@ -304,6 +312,9 @@ const Error = enum(rt.ULONG) {
 const NTSTATUS = enum(u32) {
     SUCCESS = 0x00000000,
 
+    INFO_NO_MORE_ENTRIES = 0x8000001A,
+
+    INFO_LENGTH_MISMATCH = 0xC0000004,
     INVALID_PARAMETER = 0xC000000D,
     NO_MEMORY = 0xC0000017,
 };
