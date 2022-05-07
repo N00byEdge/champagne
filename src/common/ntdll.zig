@@ -34,7 +34,7 @@ fn iswspace(chr: rt.WCHAR) callconv(.Win64) rt.BOOL {
 var rtl_global_heap = std.heap.GeneralPurposeAllocator(.{}){.backing_allocator = std.heap.page_allocator};
 
 fn RtlAllocateHeap(heap_handle: ?*anyopaque, flags: rt.ULONG, size: rt.SIZE_T) callconv(.Win64) ?*anyopaque {
-    log.info("RtlAllocateHeap(handle=0x{X},flags=0x{X},size=0x{X})", .{heap_handle, flags, size});
+    log.info("RtlAllocateHeap(handle=0x{X}, flags=0x{X}, size=0x{X})", .{@ptrToInt(heap_handle), flags, size});
     if(heap_handle) |_| {
         @panic("RtlAllocateHeap with handle");
     }
@@ -54,7 +54,7 @@ fn NtSetInformationProcess(
     process_information: rt.PVOID,
     process_information_length: rt.ULONG,
 ) callconv(.Win64) NTSTATUS {
-    log.info("NtSetInformationProcess(handle={},class={s},info=0x{x},length={d})", .{process_handle, @tagName(process_information_class), process_information, process_information_length});
+    log.info("NtSetInformationProcess(handle=0x{X}, class={s}, info=0x{x}, length={d})", .{@ptrToInt(process_handle), @tagName(process_information_class), @ptrToInt(process_information), process_information_length});
     return .SUCCESS;
 }
 
