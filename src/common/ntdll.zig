@@ -241,6 +241,8 @@ fn giveSystemInfo(ret_ptr: rt.PVOID, ret_max_size: rt.ULONG, ret_out_size: ?*rt.
     return .SUCCESS;
 }
 
+var manufacturer_profile_name = rt.toNullTerminatedUTF16Buffer("Champagne-SYSTEM");
+
 fn NtQuerySystemInformation(
     class: SystemInformationClass,
     ret_ptr: rt.PVOID,
@@ -265,6 +267,10 @@ fn NtQuerySystemInformation(
             active_processors_affinity_mask: usize = 1 << 0,
             number_of_processors: usize = 1,
         }),
+        .SystemManufacturingInformation => giveSystemInfo(ret_ptr, ret_max_size, ret_out_size, extern struct {
+            options: rt.ULONG = 0,
+            profile_name: rt.UnicodeString = rt.UnicodeString.initFromBuffer(&manufacturer_profile_name),
+        }),
     };
 }
 
@@ -288,9 +294,10 @@ const NTSTATUS = enum(u32) {
 };
 
 const SystemInformationClass = enum(u32) {
-    Basic = 0,
+    Basic = 0x00,
     //Processor = 1,
     //Performance = 2,
+    SystemManufacturingInformation = 0x9D,
 };
 
 const HeapInformationClass = enum(u32) {
