@@ -335,6 +335,14 @@ fn NtRaiseHardError(
     return .SUCCESS;
 }
 
+fn NtTerminateProcess(
+    process_handle: rt.HANDLE,
+    exit_status: NTSTATUS,
+) callconv(.Win64) NTSTATUS {
+    log.info("NtTerminateProcess(handle=0x{X}, status='{s}')", .{@ptrToInt(process_handle), @tagName(exit_status)});
+    std.os.exit(0);
+}
+
 fn RtlCreateSecurityDescriptor(
     desc_out: ?*SecurityDescriptor,
     revision: rt.ULONG,
@@ -652,7 +660,7 @@ pub const builtin_symbols = blk: {
         .{"NtInitializeRegistry", stub("NtInitializeRegistry") },
         .{"NtResumeThread", stub("NtResumeThread") },
         .{"NtWaitForSingleObject", stub("NtWaitForSingleObject") },
-        .{"NtTerminateProcess", stub("NtTerminateProcess") },
+        .{"NtTerminateProcess", NtTerminateProcess },
         .{"TpAllocWork", stub("TpAllocWork") },
         .{"TpPostWork", stub("TpPostWork") },
         .{"TpWaitForWork", stub("TpWaitForWork") },
