@@ -8,6 +8,7 @@ pub const TRUE = 1;
 pub const UCHAR = u8;
 pub const WORD = u16;
 pub const USHORT = u16;
+pub const DWORD = u32;
 pub const ULONG = u32;
 pub const SIZE_T = u32;
 pub const ULONGLONG = u64;
@@ -79,7 +80,8 @@ pub fn fmt(val: anytype) Fmt(@TypeOf(val)) {
     return Fmt(@TypeOf(val)){.v = val};
 }
 
-pub const LPCGUID = ?*const @import("guids.zig").GUID;
+pub const GUID = @import("guids.zig").GUID;
+pub const LPCGUID = ?*const GUID;
 
 pub const EventFilterDescriptor = extern struct {
     ptr: ULONGLONG,

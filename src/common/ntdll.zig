@@ -355,6 +355,183 @@ fn RtlCreateSecurityDescriptor(
     return .SUCCESS;
 }
 
+fn RtlSetDaclSecurityDescriptor(
+    security_descriptor: ?*SecurityDescriptor,
+    dacl_present: rt.BOOL,
+    dacl: ?*AccessControlList,
+    dacl_defaulted: rt.BOOL,
+) callconv(.Win64) NTSTATUS {
+    _ = dacl_present;
+    _ = dacl_defaulted;
+    log.info("RtlSetDaclSecurityDescriptor()", .{});
+    const desc = security_descriptor orelse return .INVALID_PARAMETER;
+    desc.dacl = dacl;
+    return .SUCCESS;
+}
+
+var sid_allocator = std.heap.GeneralPurposeAllocator(.{}){.backing_allocator = std.heap.page_allocator};
+
+fn RtlAllocateAndInitializeSid(
+    sid_auth: ?*SecurityIdentifierAuthority,
+    sub_count: u8,
+    sub_authority0: rt.ULONG,
+    sub_authority1: rt.ULONG,
+    sub_authority2: rt.ULONG,
+    sub_authority3: rt.ULONG,
+    sub_authority4: rt.ULONG,
+    sub_authority5: rt.ULONG,
+    sub_authority6: rt.ULONG,
+    sub_authority7: rt.ULONG,
+    opt_sid: ?*?[*]u8, // Actually ?*?*SecurityIdentifier
+) callconv(.Win64) NTSTATUS {
+    const sid = opt_sid orelse return .INVALID_PARAMETER;
+    const auth = sid_auth orelse return .INVALID_PARAMETER;
+    const result_sid = SecurityIdentifier{
+        .revision = 0,
+        .sub_authority_count = sub_count,
+        .identifier_authority = auth.*,
+        .sub_authorities = .{
+            if(sub_count >= 1) sub_authority0 else undefined,
+            if(sub_count >= 2) sub_authority1 else undefined,
+            if(sub_count >= 3) sub_authority2 else undefined,
+            if(sub_count >= 4) sub_authority3 else undefined,
+            if(sub_count >= 5) sub_authority4 else undefined,
+            if(sub_count >= 6) sub_authority5 else undefined,
+            if(sub_count >= 7) sub_authority6 else undefined,
+            if(sub_count >= 8) sub_authority7 else undefined,
+        },
+    };
+    sid.* = (sid_allocator.allocator().dupe(u8, std.mem.toBytes(result_sid)[0..result_sid.size()]) catch return .NO_MEMORY).ptr;
+    log.info("RtlAllocateAndInitializeSid({})", .{result_sid});
+    return .SUCCESS;
+}
+
+fn RtlLengthSid(
+    opt_sid: ?*SecurityIdentifier,
+) callconv(.Win64) rt.ULONG {
+    log.info("RtlLengthSid({})", .{opt_sid});
+    const sid = opt_sid.?;
+    return sid.size();
+}
+
+fn RtlCreateAcl(
+    acl: ?*AccessControlList,
+    length: rt.ULONG,
+    revision: rt.ULONG,
+) callconv(.Win64) NTSTATUS {
+    log.info("RtlCreateAcl()", .{});
+    _ = length; // Is this supposed to be used??
+    (acl orelse return .INVALID_PARAMETER).* = .{
+        .revision = @intCast(u8, revision),
+        .sbz1 = undefined,
+        .acl_size = @intCast(rt.WORD, @sizeOf(AccessControlList)),
+        .ace_count = 0,
+        .sbz2 = undefined,
+    };
+    return .SUCCESS;
+}
+
+fn RtlAddAccessAllowedAce(
+    opt_acl: ?*AccessControlList,
+    ace_revision: rt.ULONG,
+    access_mask: AccessMask,
+    opt_sid: ?*SecurityIdentifier,
+) callconv(.Win64) NTSTATUS {
+    const acl = opt_acl orelse return .INVALID_PARAMETER;
+    const sid = opt_sid orelse return .INVALID_PARAMETER;
+    _ = ace_revision;
+
+    var ace = AccessControlListEntry {
+        .type = .allowed,
+        .num_bytes = undefined,
+        .flags = 0,
+        .u = .{
+            .allowed = .{
+                .mask = access_mask,
+                .sid = sid.*,
+            },
+        },
+    };
+    ace.num_bytes = @intCast(u8, ace.size());
+
+    log.info(
+        \\RtlAddAccessAllowedAce(
+        \\  0x{X}: {},
+        \\  {},
+        \\)
+        , .{@ptrToInt(acl), acl, ace}
+    );
+    @memcpy(@ptrCast([*]u8, acl) + acl.acl_size, @ptrCast([*]const u8, &ace), ace.size());
+    acl.ace_count += 1;
+    acl.acl_size += ace.num_bytes;
+    return .SUCCESS;
+}
+
+fn RtlAddMandatoryAce(
+    acl: ?*AccessControlList,
+    ace_revision: rt.ULONG,
+    flags: rt.ULONG,
+    mandatory_flags: rt.ULONG,
+    sid: ?*SecurityIdentifier,
+) callconv(.Win64) NTSTATUS {
+    _ = acl;
+    _ = ace_revision;
+    _ = flags;
+    _ = mandatory_flags;
+    _ = sid;
+    log.info("STUB: RtlAddMandatoryAce()", .{});
+    return .SUCCESS;
+}
+
+fn RtlGetAce(
+    opt_acl: ?*AccessControlList,
+    index: rt.ULONG,
+    opt_acle: ?**AccessControlListEntry,
+) callconv(.Win64) NTSTATUS {
+    log.info("RtlGetAce(0x{X}, {d})", .{@ptrToInt(opt_acl), index});
+    const acl = opt_acl orelse return .INVALID_PARAMETER;
+    const acle = opt_acle orelse return .INVALID_PARAMETER;
+    if(index >= acl.ace_count) return .INVALID_PARAMETER;
+
+    var bytes = @ptrCast([*]u8, acl)[@sizeOf(AccessControlList)..acl.acl_size];
+    var current_index: usize = 0;
+
+    while(true) : (current_index += 1) {
+        const current_acle = @ptrCast(*AccessControlListEntry, @alignCast(@alignOf(AccessControlListEntry),bytes.ptr));
+        //log.info("RtlGetAce: index {} acle {}", .{current_index, current_acle});
+
+        if(index == current_index) {
+            // This is the one!
+            acle.* = current_acle;
+            return .SUCCESS;
+        }
+
+        bytes = bytes[current_acle.size()..];
+    }
+
+    unreachable;
+}
+
+fn RtlSetSaclSecurityDescriptor(
+    desc: ?*SecurityDescriptor,
+    sacl_present: rt.BOOL,
+    sacl: ?*AccessControlList,
+    sacl_defaulted: rt.BOOL,
+) callconv(.Win64) NTSTATUS {
+    _ = desc;
+    _ = sacl_present;
+    _ = sacl;
+    _ = sacl_defaulted;
+    log.info("RtlSetSaclSecurityDescriptor()", .{});
+    return .SUCCESS;
+}
+
+// TODO: Find docs on this
+fn RtlAddProcessTrustLabelAce(
+) callconv(.Win64) NTSTATUS {
+    return .INVALID_PARAMETER;
+}
+
 const Error = enum(rt.ULONG) {
     SUCCESS = 0x00000000,
 };
@@ -370,6 +547,8 @@ const NTSTATUS = enum(u32) {
     SYSTEM_PROCESS_TERMINATED = 0xC000021A,
 };
 
+const AccessMask = rt.DWORD;
+
 const SecurityDescriptor = extern struct {
     revision: u8,
     sbz1: u8 = 0,
@@ -384,19 +563,102 @@ const SecurityDescriptorControl = rt.WORD;
 
 const SecurityIdentifier = extern struct {
     revision: u8,
-    sub_authority_count: u8,
-    identifier_authority: SecurityIdentifierAuthority,
-    // Also has trailing things at end if nonzero subauthority count
+    sub_authority_count: u8 = 0,
+    identifier_authority: SecurityIdentifierAuthority = undefined,
+    sub_authorities: [8]rt.ULONG = undefined,
+
+    pub fn size(self: @This()) u8 {
+        return @offsetOf(@This(), "sub_authorities") + @sizeOf(rt.ULONG) * self.sub_authority_count;
+    }
+
+    pub fn format(
+        self: @This(),
+        comptime layout: []const u8,
+        opts: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = layout;
+        _ = opts;
+        try writer.print("SecurityIdentifier{{ .revision = {d}, .identifier_authority = {any}, .sub = {any}", .{
+            self.revision,
+            self.identifier_authority,
+            self.sub_authorities[0..self.sub_authority_count]
+        });
+    }
 };
 
 const SecurityIdentifierAuthority = [6]u8;
 
-const AccessControlList = struct {
+const AccessControlList = extern struct {
     revision: u8,
     sbz1: u8,
     acl_size: rt.WORD,
     ace_count: rt.WORD,
     sbz2: rt.WORD,
+};
+
+const AccessControlListEntry = extern struct {
+    const Type = enum(u8) {
+        allowed = 0,
+        // denied = 1,
+        // system_audit = 2,
+        // system_alarm = 3,
+        // allowed_compound = 4,
+        // allowed_object = 5,
+        // denied_object = 6,
+        // system_audit_object = 7,
+        // system_alarm_object = 8,
+        allowed_callback = 9,
+        // denied_callback = 10,
+        allowed_callback_object = 11,
+        // denied_callback_object = 12,
+        // system_audit_callback = 13,
+        // system_alarm_callback = 14,
+        // system_audit_callback_object = 15,
+        // system_alarm_callback_object = 16,
+    };
+
+    type: Type,
+    num_bytes: u8,
+    flags: rt.DWORD,
+
+    u: extern union {
+        allowed: extern struct {
+            mask: AccessMask,
+            sid: SecurityIdentifier,
+        },
+        allowed_callback: extern struct {
+            mask: AccessMask,
+            sid: SecurityIdentifier,
+        },
+        allowed_callback_object: extern struct {
+            mask: AccessMask,
+            flags: rt.DWORD,
+            object_type: rt.GUID,
+            inherited_object_type: rt.GUID,
+            sid: SecurityIdentifier,
+        },
+    },
+
+    pub fn size(self: *@This()) u8 {
+        inline for(@typeInfo(Type).Enum.fields) |f| {
+            if(@enumToInt(self.type) == f.value) {
+                return @offsetOf(@This(), "u") + @sizeOf(@TypeOf(@field(self.u, f.name))) - @sizeOf(SecurityIdentifier) + @field(self.u, f.name).sid.size();
+            }
+            unreachable;
+        }
+    }
+
+    pub fn format(
+        self: @This(),
+        comptime layout: []const u8,
+        opts: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = layout;
+        _ = opts;
+        try writer.print("AccessControlListEntry{{ .flags = 0x{X}, .type = {d} }}", .{self.flags, @enumToInt(self.type)});
+    }
 };
 
 const HardErrorResponseOption = enum(u32) {
@@ -618,11 +880,11 @@ pub const builtin_symbols = blk: {
         .{"NtUpdateWnfStateData", stub("NtUpdateWnfStateData") },
         .{"NtSerializeBoot", stub("NtSerializeBoot") },
         .{"RtlUnicodeStringToInteger", stub("RtlUnicodeStringToInteger") },
-        .{"RtlAllocateAndInitializeSid", stub("RtlAllocateAndInitializeSid") },
+        .{"RtlAllocateAndInitializeSid", RtlAllocateAndInitializeSid },
         .{"RtlCreateSecurityDescriptor", RtlCreateSecurityDescriptor },
-        .{"RtlCreateAcl", stub("RtlCreateAcl") },
-        .{"RtlAddAccessAllowedAce", stub("RtlAddAccessAllowedAce") },
-        .{"RtlSetDaclSecurityDescriptor", stub("RtlSetDaclSecurityDescriptor") },
+        .{"RtlCreateAcl", RtlCreateAcl },
+        .{"RtlAddAccessAllowedAce", RtlAddAccessAllowedAce },
+        .{"RtlSetDaclSecurityDescriptor", RtlSetDaclSecurityDescriptor },
         .{"RtlSetOwnerSecurityDescriptor", stub("RtlSetOwnerSecurityDescriptor") },
         .{"NtSetSecurityObject", stub("NtSetSecurityObject") },
         .{"RtlExpandEnvironmentStrings_U", stub("RtlExpandEnvironmentStrings_U") },
@@ -638,11 +900,11 @@ pub const builtin_symbols = blk: {
         .{"EtwEventEnabled", stub("EtwEventEnabled") },
         .{"_vsnwprintf", stub("_vsnwprintf") },
         .{"RtlCopyUnicodeString", stub("RtlCopyUnicodeString") },
-        .{"RtlAddMandatoryAce", stub("RtlAddMandatoryAce") },
-        .{"RtlSetSaclSecurityDescriptor", stub("RtlSetSaclSecurityDescriptor") },
+        .{"RtlAddMandatoryAce", RtlAddMandatoryAce },
+        .{"RtlSetSaclSecurityDescriptor", RtlSetSaclSecurityDescriptor },
         .{"RtlAdjustPrivilege", RtlAdjustPrivilege },
         .{"RtlFreeSid", stub("RtlFreeSid") },
-        .{"RtlLengthSid", stub("RtlLengthSid") },
+        .{"RtlLengthSid", RtlLengthSid },
         .{"NtCreateMutant", stub("NtCreateMutant") },
         .{"RtlCreateTagHeap", RtlCreateTagHeap },
         .{"NtSetInformationProcess", NtSetInformationProcess },
@@ -700,8 +962,8 @@ pub const builtin_symbols = blk: {
         .{"RtlCreateUserProcess", stub("RtlCreateUserProcess") },
         .{"RtlDestroyProcessParameters", stub("RtlDestroyProcessParameters") },
         .{"NtDisplayString", stub("NtDisplayString") },
-        .{"RtlAddProcessTrustLabelAce", stub("RtlAddProcessTrustLabelAce") },
-        .{"RtlGetAce", stub("RtlGetAce") },
+        .{"RtlAddProcessTrustLabelAce", RtlAddProcessTrustLabelAce },
+        .{"RtlGetAce", RtlGetAce },
         .{"NtQueryDirectoryObject", stub("NtQueryDirectoryObject") },
         .{"RtlTimeToTimeFields", stub("RtlTimeToTimeFields") },
         .{"NtDeleteFile", stub("NtDeleteFile") },
