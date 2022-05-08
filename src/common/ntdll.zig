@@ -553,6 +553,19 @@ fn memcpy(
     return dest;
 }
 
+fn NtAlpcCreatePort(
+    opt_port_handle: ?*rt.HANDLE,
+    opt_object_attributes: rt.PVOID, // ?*ObjectAttributes,
+    opt_port_attributes: rt.PVOID, // ?*PortAttributes,
+) callconv(.Win64) NTSTATUS {
+    log.info("STUB: NtAlpcCreatePort()", .{});
+    _ = opt_object_attributes;
+    _ = opt_port_attributes;
+    const port_handle = opt_port_handle orelse return .INVALID_PARAMETER;
+    _ = port_handle;
+    return .SUCCESS;
+}
+
 const Error = enum(rt.ULONG) {
     SUCCESS = 0x00000000,
 };
@@ -929,7 +942,7 @@ pub const builtin_symbols = blk: {
         .{"NtCreateMutant", stub("NtCreateMutant") },
         .{"RtlCreateTagHeap", RtlCreateTagHeap },
         .{"NtSetInformationProcess", NtSetInformationProcess },
-        .{"NtAlpcCreatePort", stub("NtAlpcCreatePort") },
+        .{"NtAlpcCreatePort", NtAlpcCreatePort },
         .{"RtlInitializeBitMap", stub("RtlInitializeBitMap") },
         .{"RtlClearAllBits", stub("RtlClearAllBits") },
         .{"RtlSetBits", stub("RtlSetBits") },
