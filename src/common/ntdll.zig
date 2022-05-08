@@ -276,6 +276,7 @@ fn NtQuerySystemInformation(
     _ = ret_ptr;
     _ = ret_max_size;
     _ = ret_out_size;
+    log.info("NtQuerySystemInformation(class=0x{X})", .{@enumToInt(class)});
     log.info("NtQuerySystemInformation(class=0x{X} ('{s}'), max_size=0x{X})", .{@enumToInt(class), @tagName(class), ret_max_size});
     return switch(class) {
         .Basic => giveSystemInfo(ret_ptr, ret_max_size, ret_out_size, extern struct {
@@ -331,7 +332,8 @@ fn NtRaiseHardError(
 ) callconv(.Win64) NTSTATUS {
     _ = params;
     _ = unicode_string_parameter_mask;
-    log.err("NtRaiseHardError(status=0x{X}, params={d}, ropt={s})", .{@enumToInt(error_status), num_params, @tagName(response_option)});
+    log.err("NtRaiseHardError(status=0x{X}, ropt=0x{X})", .{@enumToInt(error_status), @enumToInt(response_option)});
+    log.err("NtRaiseHardError(status={s}, params={d}, ropt={s})", .{@tagName(error_status), num_params, @tagName(response_option)});
     if(response) |r| r.* = .NotHandled;
     return .SUCCESS;
 }
