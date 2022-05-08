@@ -17,7 +17,7 @@ pub const WCHAR = u16;
 
 pub const PVOID = ?*anyopaque;
 pub const HINSTANCE = ?*anyopaque;
-pub const HANDLE = ?*anyopaque;
+pub const HANDLE = usize;
 
 pub const LPCSTR = ?[*:0]const u8;
 

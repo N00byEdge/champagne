@@ -62,7 +62,7 @@ fn NtSetInformationProcess(
     process_information: rt.PVOID,
     process_information_length: rt.ULONG,
 ) callconv(.Win64) NTSTATUS {
-    log.info("NtSetInformationProcess(handle=0x{X}, class={s}, info=0x{x}, length={d})", .{@ptrToInt(process_handle), @tagName(process_information_class), @ptrToInt(process_information), process_information_length});
+    log.info("NtSetInformationProcess(handle=0x{X}, class={s}, info=0x{x}, length={d})", .{process_handle, @tagName(process_information_class), @ptrToInt(process_information), process_information_length});
     return .SUCCESS;
 }
 
@@ -191,7 +191,7 @@ fn NtQueryInformationJobObject(
     len: rt.ULONG,
     ret_len: ?*rt.ULONG,
 ) callconv(.Win64) NTSTATUS {
-    log.info("NtQueryInformationJobObject(handle=0x{X}, class={s}, len=0x{x}, ret_len={d})", .{@ptrToInt(handle), @tagName(class), len, ret_len});
+    log.info("NtQueryInformationJobObject(handle=0x{X}, class={s}, len=0x{x}, ret_len={d})", .{handle, @tagName(class), len, ret_len});
     return .SUCCESS;
 }
 
@@ -245,7 +245,7 @@ fn RtlCreateTagHeap(
     tag_name: rt.PWSTR,
     tag_sub_name: rt.PWSTR,
 ) callconv(.Win64) Error {
-    log.info("RtlCreateTagHeap(handle=0x{X}, flags=0x{X}, tag_name={}, tag_sub_name={})", .{@ptrToInt(heap_handle), flags, rt.fmt(tag_name), rt.fmt(tag_sub_name)});
+    log.info("RtlCreateTagHeap(handle=0x{X}, flags=0x{X}, tag_name={}, tag_sub_name={})", .{heap_handle, flags, rt.fmt(tag_name), rt.fmt(tag_sub_name)});
     return .SUCCESS;
 }
 
@@ -342,7 +342,7 @@ fn NtTerminateProcess(
     process_handle: rt.HANDLE,
     exit_status: NTSTATUS,
 ) callconv(.Win64) NTSTATUS {
-    log.info("NtTerminateProcess(handle=0x{X}, status='{s}')", .{@ptrToInt(process_handle), @tagName(exit_status)});
+    log.info("NtTerminateProcess(handle=0x{X}, status='{s}')", .{process_handle, @tagName(exit_status)});
     std.os.exit(0);
 }
 
