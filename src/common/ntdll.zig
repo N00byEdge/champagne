@@ -8,8 +8,9 @@ const log = std.log.scoped(.ntdll);
 
 fn stub(comptime str: []const u8) *const anyopaque {
     return @ptrCast(*const anyopaque, struct {
-        fn f() callconv(.Win64) noreturn {
-            @panic("ntdll stub: " ++ str);
+        fn f() callconv(.Win64) NTSTATUS {
+            log.err("ntdll stub: " ++ str, .{});
+            return .INVALID_PARAMETER;
         }
     }.f);
 }
