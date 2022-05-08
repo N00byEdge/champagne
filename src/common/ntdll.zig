@@ -426,6 +426,15 @@ fn RtlAllocateAndInitializeSid(
     return .SUCCESS;
 }
 
+fn RtlFreeSid(
+    opt_sid: ?*SecurityIdentifier,
+) callconv(.Win64) NTSTATUS {
+    log.info("RtlFreeSid({})", .{opt_sid});
+    const sid = opt_sid orelse return .INVALID_PARAMETER;
+    sid_allocator.allocator().free(@ptrCast([*]u8, sid)[0..sid.size()]);
+    return .SUCCESS;
+}
+
 fn RtlLengthSid(
     opt_sid: ?*SecurityIdentifier,
 ) callconv(.Win64) rt.ULONG {
@@ -973,7 +982,7 @@ pub const builtin_symbols = blk: {
         .{"RtlAddMandatoryAce", RtlAddMandatoryAce },
         .{"RtlSetSaclSecurityDescriptor", RtlSetSaclSecurityDescriptor },
         .{"RtlAdjustPrivilege", RtlAdjustPrivilege },
-        .{"RtlFreeSid", stub("RtlFreeSid") },
+        .{"RtlFreeSid", RtlFreeSid },
         .{"RtlLengthSid", RtlLengthSid },
         .{"NtCreateMutant", NtCreateMutant },
         .{"RtlCreateTagHeap", RtlCreateTagHeap },
