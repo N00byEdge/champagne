@@ -950,7 +950,6 @@ pub const builtin_symbols = blk: {
         .{"NtQueryVolumeInformationFile", stub("NtQueryVolumeInformationFile") },
         .{"NtQueryInformationProcess", stub("NtQueryInformationProcess") },
         .{"RtlInitUnicodeStringEx", RtlInitUnicodeStringEx },
-        .{"_vsnwprintf_s", stub("_vsnwprintf_s") },
         .{"NtCreatePagingFile", stub("NtCreatePagingFile") },
         .{"NtSetSystemInformation", stub("NtSetSystemInformation") },
         .{"RtlAppendUnicodeToString", stub("RtlAppendUnicodeToString") },

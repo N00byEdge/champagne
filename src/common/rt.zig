@@ -26,6 +26,15 @@ pub const PWSTR = ?[*:0]WCHAR;
 pub const PCWSTR = ?[*:0]const WCHAR;
 pub const LPCWSTR = ?[*:0]const WCHAR;
 
+export fn c_log_impl(function: ?[*:0]u8, file: ?[*:0]u8, line: c_int, msg: ?[*:0]WCHAR) void {
+    std.debug.print("{s}: {s}:{d}: {}\n", .{function, file, line, fmt(msg)});
+}
+
+export fn c_panic_impl(function: ?[*:0]u8, file: ?[*:0]u8, line: c_int, msg: ?[*:0]WCHAR) void {
+    std.debug.print("{s}: {s}:{d}: {}\n", .{function, file, line, fmt(msg)});
+    @panic("");
+}
+
 pub fn Fmt(comptime T: type) type {
     return struct {
         v: T,

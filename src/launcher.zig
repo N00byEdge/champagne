@@ -18,6 +18,9 @@ const ResolveContext = struct {
     }
 
     fn resolveBuiltinSymbol(symbol_name: []const u8) ?*const anyopaque {
+        if(std.mem.eql(u8, symbol_name, "_vsnwprintf_s")) {
+            return @extern(*const anyopaque, .{.name = "_vsnwprintf_s", .linkage = .Strong});
+        }
         return ntdll.builtin_symbols.get(symbol_name);
     }
 
