@@ -608,6 +608,14 @@ fn NtCreateMutant(
     return .SUCCESS;
 }
 
+fn NtClose(
+    handle: rt.HANDLE,
+) callconv(.Win64) NTSTATUS {
+    log.info("STUB: NtClose(0x{X})", .{handle});
+    _ = handle;
+    return .SUCCESS;
+}
+
 const Error = enum(rt.ULONG) {
     SUCCESS = 0x00000000,
 };
@@ -926,7 +934,7 @@ pub const builtin_symbols = blk: {
         .{"RtlUpcaseUnicodeChar", stub("RtlUpcaseUnicodeChar") },
         .{"NtOpenKey", stub("NtOpenKey") },
         .{"RtlGetVersion", stub("RtlGetVersion") },
-        .{"NtClose", stub("NtClose") },
+        .{"NtClose", NtClose },
         .{"TpAllocTimer", stub("TpAllocTimer") },
         .{"TpSetTimer", stub("TpSetTimer") },
         .{"NtQuerySystemInformation", NtQuerySystemInformation },
