@@ -585,6 +585,20 @@ fn NtAlpcCreatePort(
     return .SUCCESS;
 }
 
+fn NtCreateMutant(
+    opt_handle: ?*rt.HANDLE,
+    desired_access: AccessMask,
+    opt_object_attributes: rt.PVOID, // ?*ObjectAttributes,
+    initial_owner: rt.BOOL,
+) callconv(.Win64) NTSTATUS {
+    log.info("STUB: NtCreateMutant()", .{});
+    _ = opt_handle;
+    _ = desired_access;
+    _ = opt_object_attributes;
+    _ = initial_owner;
+    return .SUCCESS;
+}
+
 const Error = enum(rt.ULONG) {
     SUCCESS = 0x00000000,
 };
@@ -961,7 +975,7 @@ pub const builtin_symbols = blk: {
         .{"RtlAdjustPrivilege", RtlAdjustPrivilege },
         .{"RtlFreeSid", stub("RtlFreeSid") },
         .{"RtlLengthSid", RtlLengthSid },
-        .{"NtCreateMutant", stub("NtCreateMutant") },
+        .{"NtCreateMutant", NtCreateMutant },
         .{"RtlCreateTagHeap", RtlCreateTagHeap },
         .{"NtSetInformationProcess", NtSetInformationProcess },
         .{"NtAlpcCreatePort", NtAlpcCreatePort },
