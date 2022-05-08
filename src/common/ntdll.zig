@@ -535,6 +535,24 @@ fn RtlAddProcessTrustLabelAce(
     return .INVALID_PARAMETER;
 }
 
+fn memset(
+    dest: [*]u8,
+    value: u8,
+    size: c_int,
+) callconv(.Win64) [*]u8 {
+    @memset(dest, value, @intCast(usize, size));
+    return dest;
+}
+
+fn memcpy(
+    dest: [*]u8,
+    src: [*]const u8,
+    size: c_int,
+) callconv(.Win64) [*]u8 {
+    @memcpy(dest, src, @intCast(usize, size));
+    return dest;
+}
+
 const Error = enum(rt.ULONG) {
     SUCCESS = 0x00000000,
 };
@@ -1026,8 +1044,8 @@ pub const builtin_symbols = blk: {
         .{"NtQueryKey", stub("NtQueryKey") },
         .{"NtDeleteKey", stub("NtDeleteKey") },
         .{"__chkstk", stub("__chkstk") },
-        .{"memcpy", stub("memcpy") },
-        .{"memset", stub("memset") },
+        .{"memcpy", memcpy },
+        .{"memset", memset },
         .{"__C_specific_handler", stub("__C_specific_handler") },
     });
 };
