@@ -292,6 +292,23 @@ fn NtQuerySystemInformation(
             active_processors_affinity_mask: usize = 1 << 0,
             number_of_processors: usize = 1,
         }),
+        .NumaProcessorMap => giveSystemInfo(ret_ptr, ret_max_size, ret_out_size, extern struct {
+            const MAXIMUM_NODE_COUNT = 0x40;
+
+            const GroupAffinity = extern struct {
+                mask: rt.KAFFINITY = 1,
+                group: rt.WORD = 0,
+                reserved: [3]rt.WORD = undefined,
+            };
+
+            highest_node_number: rt.ULONG = 1,
+            reserved: rt.ULONG = undefined,
+            aff: [MAXIMUM_NODE_COUNT]GroupAffinity = [1]GroupAffinity{.{}} ++ ([1]GroupAffinity{undefined} ** (MAXIMUM_NODE_COUNT - 1)),
+
+            comptime {
+                if(@sizeOf(@This()) != 0x408) @compileError("wtf");
+            }
+        }),
         .SystemManufacturingInformation => giveSystemInfo(ret_ptr, ret_max_size, ret_out_size, extern struct {
             options: rt.ULONG = 0,
             profile_name: rt.UnicodeString = rt.UnicodeString.initFromBuffer(&manufacturer_profile_name),
@@ -719,10 +736,13 @@ const HardErrorResponse = enum(u32) {
     Yes,
 };
 
+// https://www.geoffchappell.com/studies/windows/km/ntoskrnl/api/ex/sysinfo/class.htm
+// https://www.geoffchappell.com/studies/windows/km/ntoskrnl/api/ex/sysinfo/basic.htm?ts=0,200
 const SystemInformationClass = enum(u32) {
     Basic = 0x00,
     //Processor = 1,
     //Performance = 2,
+    NumaProcessorMap = 0x37,
     SystemManufacturingInformation = 0x9D,
 };
 

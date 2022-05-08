@@ -12,6 +12,7 @@ pub const DWORD = u32;
 pub const ULONG = u32;
 pub const SIZE_T = u32;
 pub const ULONGLONG = u64;
+pub const KAFFINITY = u64;
 
 pub const WCHAR = u16;
 
