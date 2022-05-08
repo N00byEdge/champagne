@@ -11,6 +11,9 @@ void c_panic_impl(char const *function, char const *file, int line, WCHAR const 
 #define c_log(msg) c_log_impl(__FUNCTION__, __FILE__, __LINE__, msg);
 #define c_panic(msg) c_panic_impl(__FUNCTION__, __FILE__, __LINE__, msg);
 
+// Technically wrong calling convention but it should be compatible for this one
+// Where is __win64 for clang??
+__vectorcall
 int _vsnwprintf_s(
    WCHAR *buffer,
    size_t sizeOfBuffer,
