@@ -540,6 +540,7 @@ fn memset(
     value: u8,
     size: c_int,
 ) callconv(.Win64) [*]u8 {
+    log.info("memset(0x{X}, 0x{X}, 0x{X})", .{@ptrToInt(dest), value, size});
     @memset(dest, value, @intCast(usize, size));
     return dest;
 }
@@ -549,6 +550,7 @@ fn memcpy(
     src: [*]const u8,
     size: c_int,
 ) callconv(.Win64) [*]u8 {
+    log.info("memcpy(0x{X}, 0x{X}, 0x{X})", .{@ptrToInt(dest), @ptrToInt(src), size});
     @memcpy(dest, src, @intCast(usize, size));
     return dest;
 }
