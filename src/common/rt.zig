@@ -182,13 +182,16 @@ const KUserSharedData = extern struct {
 pub var pparam: ProcessParameters = undefined;
 pub var peb: PEB = undefined;
 
-const GS = extern struct {
-    self: *GS,
-    unk: [0x60]u8 = undefined,
-    peb_base: ?*PEB = undefined,
+const TEB = extern struct {
+    unk0: [0x30]u8 = undefined, // 0x0000
+    self: *TEB,                 // 0x0030
+    unk1: [0x8]u8 = undefined,  // 0x0038
+    process_id: u32 = 0x5,      // 0x0040
+    unk2: [0x1C]u8 = undefined, // 0x0044
+    peb: ?*PEB = undefined,     // 0x0060
 };
 
-var gs: GS = .{
+var teb: TEB = .{
     .self = undefined,
 };
 
@@ -206,14 +209,14 @@ pub fn init(image_path_name: [:0]WCHAR, command_line: [:0]WCHAR) !void {
     var kusd = @intToPtr(*KUserSharedData, kuser_shared_data_addr);
     kusd.* = .{};
 
-    gs.peb_base = &peb;
-    gs.self = &gs;
+    teb.peb = &peb;
+    teb.self = &teb;
 
     asm volatile(
-        "WRGSBASE %[gs]"
+        "WRGSBASE %[teb]"
         :
         :
-            [gs] "r" (@ptrToInt(&gs) + 8)
+            [teb] "r" (@ptrToInt(&teb))
     );
 
     pparam.image_path_name = UnicodeString.initFromBuffer(image_path_name);
