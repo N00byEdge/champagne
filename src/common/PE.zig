@@ -45,7 +45,7 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, import_resolve_cont
         if(header.number_of_relocations != 0) {
             @panic("Section header relocations!");
         }
-        log("Name: '{s}', vaddr = 0x{X}, size = 0x{}", .{header.name, header.virtual_address, header.misc.virtual_size});
+        log("Name: '{s}', vaddr = 0x{X}, size = 0x{}", .{header.name[0..std.mem.indexOfScalar(u8, &header.name, 0).?], header.virtual_address, header.misc.virtual_size});
     }
 
     const virt_size = ((max_addr - min_addr) + 0xFFF) & ~@as(usize, 0xFFF);
