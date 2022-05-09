@@ -116,14 +116,43 @@ pub const EnableCallback = fn (
 pub const UnicodeString = extern struct {
     length: USHORT,
     capacity: USHORT,
-    buffer: PWSTR,
+    buffer: ?[*]WCHAR,
 
     pub fn initFromBuffer(buf: [:0]WCHAR) UnicodeString {
         return .{
-            .length = @intCast(USHORT, buf.len * 2),
-            .capacity = @intCast(USHORT, buf.len * 2),
+            .length = @intCast(USHORT, buf.len << 1),
+            .capacity = @intCast(USHORT, buf.len << 1),
             .buffer = buf.ptr,
         };
+    }
+
+    pub fn freeCapacity(self: @This()) usize {
+        return (self.capacity - self.length) >> 1;
+    }
+
+    pub fn makeSpaceFor(self: *@This(), num_chars: usize, alloc: std.mem.Allocator) !void {
+        if(self.freeCapacity() < num_chars) {
+            const new_capacity = std.math.max(
+                (num_chars << 1) + self.length, // new length
+                self.capacity << 1, // double capacity
+            );
+            self.buffer = (try alloc.realloc(self.buffer.?[0..self.capacity >> 1], new_capacity >> 1)).ptr;
+            self.capacity = @intCast(USHORT, new_capacity);
+        }
+    }
+
+    pub fn appendAssumeCapacity(self: *@This(), appendage: []const WCHAR) void {
+        std.mem.copy(WCHAR, self.buffer.?[self.length>>1..(self.length>>1) + appendage.len], appendage);
+        self.length += @intCast(USHORT, appendage.len << 1);
+    }
+
+    pub fn append(self: *@This(), appendage: []const WCHAR, alloc: std.mem.Allocator) !void {
+        try self.makeSpaceFor(appendage.len, alloc);
+        self.appendAssumeCapacity(appendage);
+    }
+
+    pub fn chars(self: @This()) []const WCHAR {
+        return self.buffer.?[0..self.length >> 1];
     }
 
     pub fn format(
@@ -134,16 +163,20 @@ pub const UnicodeString = extern struct {
     ) !void {
         _ = layout;
         _ = opts;
-        const span = self.buffer.?[0..self.length];
-        try writer.print("'", .{});
-        for(span) |chr| {
-            if(chr > 0x7F) {
-                try writer.print("\\x{X:0>2}", .{chr});
-            } else {
-                try writer.print("{c}", .{@truncate(u8, chr)});
+        if(self.buffer) |buf| {
+            const span = buf[0..self.length>>1];
+            try writer.print("'", .{});
+            for(span) |chr| {
+                if(chr > 0x7F) {
+                    try writer.print("\\x{X:0>2}", .{chr});
+                } else {
+                    try writer.print("{c}", .{@truncate(u8, chr)});
+                }
             }
+            try writer.print("'", .{});
+        } else {
+            try writer.print("{{ null buf }}", .{});
         }
-        try writer.print("'", .{});
     }
 };
 

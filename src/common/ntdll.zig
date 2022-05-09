@@ -198,7 +198,7 @@ fn NtQueryInformationJobObject(
     return .SUCCESS;
 }
 
-var rtl_unicode_string_ex_heap = std.heap.GeneralPurposeAllocator(.{}){.backing_allocator = std.heap.page_allocator};
+var rtl_unicode_string_heap = std.heap.GeneralPurposeAllocator(.{}){.backing_allocator = std.heap.page_allocator};
 
 fn RtlInitUnicodeStringEx(
     dest: ?*rt.UnicodeString,
@@ -208,8 +208,32 @@ fn RtlInitUnicodeStringEx(
     const str = src orelse return .INVALID_PARAMETER;
     (dest orelse return .INVALID_PARAMETER).* =
         rt.UnicodeString.initFromBuffer(
-            rtl_unicode_string_ex_heap.allocator().dupeZ(u16, std.mem.span(str)) catch return .NO_MEMORY
+            rtl_unicode_string_heap.allocator().dupeZ(u16, std.mem.span(str)) catch return .NO_MEMORY
         );
+    return .SUCCESS;
+}
+
+fn RtlAppendUnicodeStringToString(
+    dest: ?*rt.UnicodeString,
+    src: ?*const rt.UnicodeString,
+) callconv(.Win64) NTSTATUS {
+    log("RtlAppendUnicodeStringToString({} <- {})", .{dest, src});
+    (dest orelse return .INVALID_PARAMETER).append(
+        (src orelse return .INVALID_PARAMETER).chars(),
+        rtl_unicode_string_heap.allocator(),
+    ) catch return .NO_MEMORY;
+    return .SUCCESS;
+}
+
+fn RtlAppendUnicodeToString(
+    dest: ?*rt.UnicodeString,
+    src: ?[*:0]rt.WCHAR,
+) callconv(.Win64) NTSTATUS {
+    log("RtlAppendUnicodeToString({} <- {})", .{dest, rt.fmt(src)});
+    (dest orelse return .INVALID_PARAMETER).append(
+        std.mem.span(src orelse return .INVALID_PARAMETER),
+        rtl_unicode_string_heap.allocator(),
+    ) catch return .NO_MEMORY;
     return .SUCCESS;
 }
 
@@ -1012,14 +1036,14 @@ pub const builtin_symbols = blk: {
         .{"RtlInitUnicodeStringEx", RtlInitUnicodeStringEx },
         .{"NtCreatePagingFile", stub("NtCreatePagingFile") },
         .{"NtSetSystemInformation", stub("NtSetSystemInformation") },
-        .{"RtlAppendUnicodeToString", stub("RtlAppendUnicodeToString") },
+        .{"RtlAppendUnicodeToString", RtlAppendUnicodeToString },
         .{"RtlSecondsSince1970ToTime", stub("RtlSecondsSince1970ToTime") },
         .{"qsort", stub("qsort") },
         .{"NtSetInformationFile", stub("NtSetInformationFile") },
         .{"NtQueryInformationFile", stub("NtQueryInformationFile") },
         .{"NtFsControlFile", stub("NtFsControlFile") },
         .{"RtlCompareUnicodeString", stub("RtlCompareUnicodeString") },
-        .{"RtlAppendUnicodeStringToString", stub("RtlAppendUnicodeStringToString") },
+        .{"RtlAppendUnicodeStringToString", RtlAppendUnicodeStringToString },
         .{"RtlCompareMemory", stub("RtlCompareMemory") },
         .{"NtDeleteValueKey", stub("NtDeleteValueKey") },
         .{"NtFlushKey", stub("NtFlushKey") },
