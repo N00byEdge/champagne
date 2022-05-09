@@ -609,10 +609,10 @@ fn memcpy(
 
 fn NtAlpcCreatePort(
     opt_port_handle: ?*rt.HANDLE,
-    opt_object_attributes: rt.PVOID, // ?*ObjectAttributes,
+    opt_object_attributes: ?*ObjectAttributes,
     opt_port_attributes: rt.PVOID, // ?*PortAttributes,
 ) callconv(.Win64) NTSTATUS {
-    log("STUB: NtAlpcCreatePort()", .{});
+    log("STUB: NtAlpcCreatePort({})", .{opt_object_attributes});
     _ = opt_object_attributes;
     _ = opt_port_attributes;
     const port_handle = opt_port_handle orelse return .INVALID_PARAMETER;
@@ -623,10 +623,10 @@ fn NtAlpcCreatePort(
 fn NtCreateMutant(
     opt_handle: ?*rt.HANDLE,
     desired_access: AccessMask,
-    opt_object_attributes: rt.PVOID, // ?*ObjectAttributes,
+    opt_object_attributes: ?*ObjectAttributes,
     initial_owner: rt.BOOL,
 ) callconv(.Win64) NTSTATUS {
-    log("STUB: NtCreateMutant()", .{});
+    log("STUB: NtCreateMutant({})", .{opt_object_attributes});
     _ = opt_handle;
     _ = desired_access;
     _ = opt_object_attributes;
@@ -651,6 +651,29 @@ fn RtlCreateEnvironment(
     log("STUB: RtlCreateEnvironment()", .{});
     return .SUCCESS;
 }
+
+const ObjectAttributes = extern struct {
+    length: rt.ULONG,
+    root_dir: rt.HANDLE,
+    name: ?*rt.UnicodeString,
+    attributes: rt.ULONG,
+    security_descriptor: ?*SecurityDescriptor,
+    security_qos: rt.PVOID,
+
+    pub fn format(
+        self: @This(),
+        comptime layout: []const u8,
+        opts: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = layout;
+        _ = opts;
+        try writer.print("Attribs{{ .root_dir=0x{X}, name={}", .{
+            self.root_dir,
+            self.name,
+        });
+    }
+};
 
 const Error = enum(rt.ULONG) {
     SUCCESS = 0x00000000,
