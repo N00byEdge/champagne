@@ -295,6 +295,22 @@ fn NtQuerySystemInformation(
             active_processors_affinity_mask: usize = 1 << 0,
             number_of_processors: usize = 1,
         }),
+        .Processor => giveSystemInfo(ret_ptr, ret_max_size, ret_out_size, extern struct {
+            architecture: enum(u16) {
+                intel = 0,
+                i286 = 2,
+                i386 = 3,
+                i486 = 4,
+                i586_pentium = 5,
+
+                amd = 9,
+            } = .i586_pentium,
+
+            level: u16 = 0xD0,
+            revision: u16 = 5,
+            maximum_processors: u16 = 1,
+            feature_bits: u32 = 0,
+        }),
         .NumaProcessorMap => giveSystemInfo(ret_ptr, ret_max_size, ret_out_size, extern struct {
             const MAXIMUM_NODE_COUNT = 0x40;
 
@@ -791,7 +807,7 @@ const HardErrorResponse = enum(u32) {
 // https://www.geoffchappell.com/studies/windows/km/ntoskrnl/api/ex/sysinfo/basic.htm?ts=0,200
 const SystemInformationClass = enum(u32) {
     Basic = 0x00,
-    //Processor = 1,
+    Processor = 0x01,
     //Performance = 2,
     NumaProcessorMap = 0x37,
     FirmwareTableInformation = 0x4C,
