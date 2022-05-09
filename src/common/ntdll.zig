@@ -22,6 +22,7 @@ fn RtlNormalizeProcessParams(
     if(params != &rt.pparam) {
         @panic("Wrong pparams passed in!");
     }
+    return params;
 }
 
 fn iswspace(chr: rt.WCHAR) callconv(.Win64) rt.BOOL {
