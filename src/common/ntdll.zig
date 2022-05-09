@@ -616,6 +616,16 @@ fn NtClose(
     return .SUCCESS;
 }
 
+fn RtlCreateEnvironment(
+    inherit: rt.BOOL,
+    env: ?*rt.PCWSTR,
+) callconv(.Win64) NTSTATUS {
+    _ = inherit;
+    _ = env;
+    log.info("STUB: RtlCreateEnvironment()", .{});
+    return .SUCCESS;
+}
+
 const Error = enum(rt.ULONG) {
     SUCCESS = 0x00000000,
 };
@@ -999,7 +1009,7 @@ pub const builtin_symbols = blk: {
         .{"RtlClearAllBits", stub("RtlClearAllBits") },
         .{"RtlSetBits", stub("RtlSetBits") },
         .{"NtOpenEvent", stub("NtOpenEvent") },
-        .{"RtlCreateEnvironment", stub("RtlCreateEnvironment") },
+        .{"RtlCreateEnvironment", RtlCreateEnvironment },
         .{"RtlSetCurrentEnvironment", stub("RtlSetCurrentEnvironment") },
         .{"RtlQueryRegistryValuesEx", stub("RtlQueryRegistryValuesEx") },
         .{"NtCreateDirectoryObject", stub("NtCreateDirectoryObject") },
