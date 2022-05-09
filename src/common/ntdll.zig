@@ -309,6 +309,13 @@ fn NtQuerySystemInformation(
                 if(@sizeOf(@This()) != 0x408) @compileError("wtf");
             }
         }),
+        .FirmwareTableInformation => giveSystemInfo(ret_ptr, ret_max_size, ret_out_size, extern struct {
+            provider: [4]u8 = "CHMP".*, // Champagne
+            action: u32 = 0,
+            table_id: [4]u8 = "XSDT".*,
+            table_buffer_len: rt.ULONG = 4,
+            table_buffer: [4]u8 = "XSDT".*,
+        }),
         .SystemManufacturingInformation => giveSystemInfo(ret_ptr, ret_max_size, ret_out_size, extern struct {
             options: rt.ULONG = 0,
             profile_name: rt.UnicodeString = rt.UnicodeString.initFromBuffer(&manufacturer_profile_name),
@@ -784,6 +791,7 @@ const SystemInformationClass = enum(u32) {
     //Processor = 1,
     //Performance = 2,
     NumaProcessorMap = 0x37,
+    FirmwareTableInformation = 0x4C,
     SystemManufacturingInformation = 0x9D,
 };
 
