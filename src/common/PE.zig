@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const log = std.log.scoped(.PE);
+const log = @import("log.zig").scoped(.PE);
 
 const IMAGE_DIRECTORY_ENTRY_EXPORT = 0; // Export directory
 const IMAGE_DIRECTORY_ENTRY_IMPORT = 1; // Import directory
@@ -45,7 +45,7 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, import_resolve_cont
         if(header.number_of_relocations != 0) {
             @panic("Section header relocations!");
         }
-        log.info("Name: '{s}', vaddr = 0x{X}, size = 0x{}", .{header.name, header.virtual_address, header.misc.virtual_size});
+        log("Name: '{s}', vaddr = 0x{X}, size = 0x{}", .{header.name, header.virtual_address, header.misc.virtual_size});
     }
 
     const virt_size = ((max_addr - min_addr) + 0xFFF) & ~@as(usize, 0xFFF);
@@ -60,7 +60,7 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, import_resolve_cont
     errdefer std.os.munmap(vmem);
 
     const load_delta = @ptrToInt(vmem.ptr) -% min_addr;
-    log.info("Allocated executable space at 0x{X} (delta 0x{X})", .{@ptrToInt(vmem.ptr), load_delta});
+    log("Allocated executable space at 0x{X} (delta 0x{X})", .{@ptrToInt(vmem.ptr), load_delta});
 
     for(coff_file.sections.items) |s| {
         const header = s.header;
@@ -83,7 +83,7 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, import_resolve_cont
                 header.pointer_to_raw_data,
             );
             if(read != header.size_of_raw_data) {
-                log.info("Read 0x{X} but expected to read 0x{X}", .{read, header.size_of_raw_data});
+                log("Read 0x{X} but expected to read 0x{X}", .{read, header.size_of_raw_data});
                 return error.EndOfFile;
             }
         //}
@@ -92,10 +92,10 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, import_resolve_cont
         //}
     }
 
-    log.info("File loaded", .{});
+    log("File loaded", .{});
 
     if(@ptrToInt(vmem.ptr) != min_addr) {
-        log.info("File was loaded at an offset, doing relocations", .{});
+        log("File was loaded at an offset, doing relocations", .{});
 
         const relocs_entry = coff_file.pe_header.data_directory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
         var reloc_block_bytes = vmem[relocs_entry.virtual_address - min_addr..][0..relocs_entry.size];
@@ -197,7 +197,7 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, import_resolve_cont
                     10 => std.mem.bytesAsSlice(u64, reloc_bytes)[0] +%= load_delta,
 
                     else => {
-                        log.err("Relocation of type {d} at addr 0x{X} (offset 0x{X})", .{reloc_type, reloc_addr, block_offset});
+                        log("Relocation of type {d} at addr 0x{X} (offset 0x{X})", .{reloc_type, reloc_addr, block_offset});
                         @panic("Unknown relocation!");
                     },
                 }
@@ -206,7 +206,7 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, import_resolve_cont
             reloc_block_bytes = reloc_block_bytes[num_block_bytes..];
         }
 
-        log.info("Relocations done", .{});
+        log("Relocations done", .{});
     }
 
     // Imports?
@@ -236,7 +236,7 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, import_resolve_cont
                 ;
             }
         }
-        log.info("Imports done", .{});
+        log("Imports done", .{});
     }
 
     // Exports?
@@ -261,7 +261,7 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, import_resolve_cont
         };
 
         if(header.characteristics & 0x02000000 != 0) { // Section can be discarded after loading
-            log.info("Unmapping section at 0x{X} with size 0x{X}", .{@ptrToInt(section_mem.ptr), section_mem.len});
+            log("Unmapping section at 0x{X} with size 0x{X}", .{@ptrToInt(section_mem.ptr), section_mem.len});
             std.os.munmap(section_mem);
             continue;
         }
@@ -275,14 +275,14 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, import_resolve_cont
             break :blk result;
         };
 
-        log.info("Keeping section at 0x{X} with size 0x{X}, new prot flags: 0x{X}", .{@ptrToInt(section_mem.ptr), section_mem.len, prot_flags});
+        log("Keeping section at 0x{X} with size 0x{X}, new prot flags: 0x{X}", .{@ptrToInt(section_mem.ptr), section_mem.len, prot_flags});
 
         try std.os.mprotect(
             section_mem,
             prot_flags,
         );
     }
-    log.info("Section permissions set", .{});
+    log("Section permissions set", .{});
 
     return coff_file.pe_header.entry_addr +% load_delta;
 }

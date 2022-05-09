@@ -2,28 +2,30 @@ const std = @import("std");
 const rt = @import("rt.zig");
 const guids = @import("guids.zig");
 
-const log = std.log.scoped(.ntdll);
+const log = @import("log.zig").scoped(.ntdll);
 
 // @TODO: https://github.com/ziglang/zig/issues/11585
 
 fn stub(comptime str: []const u8) *const anyopaque {
     return @ptrCast(*const anyopaque, struct {
         fn f() callconv(.Win64) NTSTATUS {
-            log.err("ntdll stub: " ++ str, .{});
-            return .INVALID_PARAMETER;
+            log("Undefined, stub: " ++ str, .{});
+            return .SUCCESS;
         }
     }.f);
 }
 
-fn RtlNormalizeProcessParams(params: ?*rt.ProcessParameters) callconv(.Win64) void {
-    log.info("Normalizing params", .{});
+fn RtlNormalizeProcessParams(
+    params: ?*rt.ProcessParameters
+) callconv(.Win64) ?*rt.ProcessParameters {
+    log("Normalizing params", .{});
     if(params != &rt.pparam) {
         @panic("Wrong pparams passed in!");
     }
 }
 
 fn iswspace(chr: rt.WCHAR) callconv(.Win64) rt.BOOL {
-    //log.info("iswspace 0x{X} ('{c}')", .{chr, if(chr <= 0x7F) @truncate(u8, chr) else '!'});
+    //log("iswspace 0x{X} ('{c}')", .{chr, if(chr <= 0x7F) @truncate(u8, chr) else '!'});
     if(chr > 0x7F) {
         @panic("TODO: non-ascii");
     }
@@ -36,23 +38,23 @@ fn iswspace(chr: rt.WCHAR) callconv(.Win64) rt.BOOL {
 var rtl_global_heap = std.heap.GeneralPurposeAllocator(.{}){.backing_allocator = std.heap.page_allocator};
 
 fn RtlAllocateHeap(heap_handle: ?*anyopaque, flags: rt.ULONG, size: rt.SIZE_T) callconv(.Win64) ?*anyopaque {
-    log.info("RtlAllocateHeap(handle=0x{X}, flags=0x{X}, size=0x{X})", .{@ptrToInt(heap_handle), flags, size});
+    log("RtlAllocateHeap(handle=0x{X}, flags=0x{X}, size=0x{X})", .{@ptrToInt(heap_handle), flags, size});
     if(heap_handle) |_| {
         @panic("RtlAllocateHeap with handle");
     }
 
     const retval = (rtl_global_heap.allocator().alloc(u8, size) catch |err| {
-        log.err("RtlAllocateHeap failed (error.{s})!", .{@errorName(err)});
+        log("RtlAllocateHeap failed (error.{s})!", .{@errorName(err)});
         return null;
     }).ptr;
 
-    log.info("RtlAllocateHeap -> 0x{X}", .{@ptrToInt(retval)});
+    log("RtlAllocateHeap -> 0x{X}", .{@ptrToInt(retval)});
     return retval;
 }
 
 fn RtlFreeHeap(heap_handle: ?*anyopaque, flags: rt.ULONG, base_addr: ?[*]u8) callconv(.Win64) rt.LOGICAL {
     // TODO: Don't just leak memory here
-    log.info("RtlFreeHeap(handle=0x{X}, flags = 0x{X}, ptr=0x{X})", .{@ptrToInt(heap_handle), flags, @ptrToInt(base_addr)});
+    log("RtlFreeHeap(handle=0x{X}, flags = 0x{X}, ptr=0x{X})", .{@ptrToInt(heap_handle), flags, @ptrToInt(base_addr)});
     return rt.TRUE;
 }
 
@@ -62,7 +64,7 @@ fn NtSetInformationProcess(
     process_information: rt.PVOID,
     process_information_length: rt.ULONG,
 ) callconv(.Win64) NTSTATUS {
-    log.info("NtSetInformationProcess(handle=0x{X}, class={s}, info=0x{x}, length={d})", .{process_handle, @tagName(process_information_class), @ptrToInt(process_information), process_information_length});
+    log("NtSetInformationProcess(handle=0x{X}, class={s}, info=0x{x}, length={d})", .{process_handle, @tagName(process_information_class), @ptrToInt(process_information), process_information_length});
     return .SUCCESS;
 }
 
@@ -72,7 +74,7 @@ fn RtlSetHeapInformation(
     heap_information: rt.PVOID,
     heap_information_length: rt.SIZE_T
 ) callconv(.Win64) NTSTATUS {
-    log.info("RtlSetHeapInformation(handle=0x{X}, class={s}, info=0x{x}, length={d})", .{@ptrToInt(heap_handle), @tagName(heap_information_class), @ptrToInt(heap_information), heap_information_length});
+    log("RtlSetHeapInformation(handle=0x{X}, class={s}, info=0x{x}, length={d})", .{@ptrToInt(heap_handle), @tagName(heap_information_class), @ptrToInt(heap_information), heap_information_length});
     return .SUCCESS;
 }
 
@@ -84,7 +86,7 @@ fn EtwEventRegister(
     callback_context: rt.PVOID,
     result_handle: ?*REGHANDLE,
 ) callconv(.Win64) Error {
-    log.info("EtwEventRegister(guid={}, callback=0x{X}, context=0x{x}, result_out=0x{X})", .{provider_id, @ptrToInt(callback), @ptrToInt(callback_context), @ptrToInt(result_handle)});
+    log("EtwEventRegister(guid={}, callback=0x{X}, context=0x{x}, result_out=0x{X})", .{provider_id, @ptrToInt(callback), @ptrToInt(callback_context), @ptrToInt(result_handle)});
     return .SUCCESS;
 }
 
@@ -125,7 +127,7 @@ fn EtwRegisterTraceGuidsW(
     m_of_resource_name: rt.LPCWSTR,
     registration_handle: ?*TraceHandle,
 ) callconv(.Win64) Error {
-    log.info("EtwRegisterTraceGuidsW(req_addr=0x{X}, req_cont=0x{X}, cguid={}, guidcnt={}, tguid={}, imgp={}, mrname={}, rhandle=0x{X})", .{
+    log("EtwRegisterTraceGuidsW(req_addr=0x{X}, req_cont=0x{X}, cguid={}, guidcnt={}, tguid={}, imgp={}, mrname={}, rhandle=0x{X})", .{
         @ptrToInt(request_address),
         @ptrToInt(request_context),
         control_guid,
@@ -143,7 +145,7 @@ fn TpAllocPool(
     reserved: rt.PVOID,
 ) callconv(.Win64) NTSTATUS {
     const result = opt_result orelse return .INVALID_PARAMETER;
-    log.info("TpAllocPool(0x{X}) -> 0x41414141", .{@ptrToInt(result)});
+    log("TpAllocPool(0x{X}) -> 0x41414141", .{@ptrToInt(result)});
     result.* = @intToPtr(rt.PVOID, 0x41414141);
     _ = reserved;
     return .SUCCESS;
@@ -153,7 +155,7 @@ fn TpSetPoolMinThreads(
     tp: rt.PVOID,
     min_threads: rt.ULONG,
 ) callconv(.Win64) NTSTATUS {
-    log.info("TpSetPoolMinThreads(0x{X}, {d})", .{@ptrToInt(tp orelse return .INVALID_PARAMETER), min_threads});
+    log("TpSetPoolMinThreads(0x{X}, {d})", .{@ptrToInt(tp orelse return .INVALID_PARAMETER), min_threads});
     return .SUCCESS;
 }
 
@@ -191,7 +193,7 @@ fn NtQueryInformationJobObject(
     len: rt.ULONG,
     ret_len: ?*rt.ULONG,
 ) callconv(.Win64) NTSTATUS {
-    log.info("NtQueryInformationJobObject(handle=0x{X}, class={s}, len=0x{x}, ret_len={d})", .{handle, @tagName(class), len, ret_len});
+    log("NtQueryInformationJobObject(handle=0x{X}, class={s}, len=0x{x}, ret_len={d})", .{handle, @tagName(class), len, ret_len});
     return .SUCCESS;
 }
 
@@ -201,7 +203,7 @@ fn RtlInitUnicodeStringEx(
     dest: ?*rt.UnicodeString,
     src: rt.PCWSTR,
 ) callconv(.Win64) NTSTATUS {
-    log.info("RtlInitUnicodeStringEx({})", .{rt.fmt(src)});
+    log("RtlInitUnicodeStringEx({})", .{rt.fmt(src)});
     const str = src orelse return .INVALID_PARAMETER;
     (dest orelse return .INVALID_PARAMETER).* =
         rt.UnicodeString.initFromBuffer(
@@ -215,7 +217,7 @@ fn RtlInitUnicodeString(
     src: rt.PCWSTR,
 ) callconv(.Win64) void {
     if(RtlInitUnicodeStringEx(dest, src) != .SUCCESS) {
-        log.err("RtlInitUnicodeString: RtlInitUnicodeStringEx failed!", .{});
+        log("RtlInitUnicodeString: RtlInitUnicodeStringEx failed!", .{});
     }
 }
 
@@ -225,7 +227,7 @@ fn RtlSetThreadIsCritical(
     check_flag: rt.BOOL,
 ) callconv(.Win64) NTSTATUS {
     if(old_value) |o| o.* = rt.FALSE;
-    log.info("RtlSetThreadIsCritical({},check_flag={})", .{rt.fmt(new_value), rt.fmt(check_flag)});
+    log("RtlSetThreadIsCritical({},check_flag={})", .{rt.fmt(new_value), rt.fmt(check_flag)});
     return .SUCCESS;
 }
 
@@ -236,7 +238,7 @@ const RtlSrwLock = extern struct {
 fn RtlInitializeSRWLock(
     lock: ?*RtlSrwLock,
 ) callconv(.Win64) void {
-    log.info("RtlInitializeSRWLock(0x{X})", .{@ptrToInt(lock)});
+    log("RtlInitializeSRWLock(0x{X})", .{@ptrToInt(lock)});
 }
 
 fn RtlCreateTagHeap(
@@ -245,7 +247,7 @@ fn RtlCreateTagHeap(
     tag_name: rt.PWSTR,
     tag_sub_name: rt.PWSTR,
 ) callconv(.Win64) Error {
-    log.info("RtlCreateTagHeap(handle=0x{X}, flags=0x{X}, tag_name={}, tag_sub_name={})", .{heap_handle, flags, rt.fmt(tag_name), rt.fmt(tag_sub_name)});
+    log("RtlCreateTagHeap(handle=0x{X}, flags=0x{X}, tag_name={}, tag_sub_name={})", .{heap_handle, flags, rt.fmt(tag_name), rt.fmt(tag_sub_name)});
     return .SUCCESS;
 }
 
@@ -276,8 +278,8 @@ fn NtQuerySystemInformation(
     _ = ret_ptr;
     _ = ret_max_size;
     _ = ret_out_size;
-    log.info("NtQuerySystemInformation(class=0x{X})", .{@enumToInt(class)});
-    log.info("NtQuerySystemInformation(class=0x{X} ('{s}'), max_size=0x{X})", .{@enumToInt(class), @tagName(class), ret_max_size});
+    log("NtQuerySystemInformation(class=0x{X})", .{@enumToInt(class)});
+    log("NtQuerySystemInformation(class=0x{X} ('{s}'), max_size=0x{X})", .{@enumToInt(class), @tagName(class), ret_max_size});
     return switch(class) {
         .Basic => giveSystemInfo(ret_ptr, ret_max_size, ret_out_size, extern struct {
             reserved: rt.ULONG = 0,
@@ -328,7 +330,7 @@ const ConditionVariable = rt.PVOID;
 fn RtlInitializeConditionVariable(
     out_cvar: ?*ConditionVariable,
 ) callconv(.Win64) void {
-    log.info("RtlInitializeConditionVariable(0x{X})", .{@ptrToInt(out_cvar)});
+    log("RtlInitializeConditionVariable(0x{X})", .{@ptrToInt(out_cvar)});
 }
 
 fn RtlAdjustPrivilege(
@@ -337,7 +339,7 @@ fn RtlAdjustPrivilege(
     current_thread: rt.BOOL,
     enabled: ?*rt.BOOL,
 ) callconv(.Win64) NTSTATUS {
-    log.info("RtlAdjustPrivilege(priv={s}, enable=0x{X})", .{@tagName(priv), enable});
+    log("RtlAdjustPrivilege(priv={s}, enable=0x{X})", .{@tagName(priv), enable});
     _ = current_thread;
     if(enabled) |e| e.* = rt.TRUE;
     switch(priv) {
@@ -356,8 +358,8 @@ fn NtRaiseHardError(
 ) callconv(.Win64) NTSTATUS {
     _ = params;
     _ = unicode_string_parameter_mask;
-    log.err("NtRaiseHardError(status=0x{X}, ropt=0x{X})", .{@enumToInt(error_status), @enumToInt(response_option)});
-    log.err("NtRaiseHardError(status={s}, params={d}, ropt={s})", .{@tagName(error_status), num_params, @tagName(response_option)});
+    log("NtRaiseHardError(status=0x{X}, ropt=0x{X})", .{@enumToInt(error_status), @enumToInt(response_option)});
+    log("NtRaiseHardError(status={s}, params={d}, ropt={s})", .{@tagName(error_status), num_params, @tagName(response_option)});
     if(response) |r| r.* = .NotHandled;
     return .SUCCESS;
 }
@@ -366,7 +368,7 @@ fn NtTerminateProcess(
     process_handle: rt.HANDLE,
     exit_status: NTSTATUS,
 ) callconv(.Win64) NTSTATUS {
-    log.info("NtTerminateProcess(handle=0x{X}, status='{s}')", .{process_handle, @tagName(exit_status)});
+    log("NtTerminateProcess(handle=0x{X}, status='{s}')", .{process_handle, @tagName(exit_status)});
     std.os.exit(0);
 }
 
@@ -374,7 +376,7 @@ fn RtlCreateSecurityDescriptor(
     desc_out: ?*SecurityDescriptor,
     revision: rt.ULONG,
 ) callconv(.Win64) NTSTATUS {
-    log.info("RtlCreateSecurityDescriptor()", .{});
+    log("RtlCreateSecurityDescriptor()", .{});
     const desc = desc_out orelse return .INVALID_PARAMETER;
     desc.* = .{
         .revision = @intCast(u8, revision),
@@ -390,7 +392,7 @@ fn RtlSetDaclSecurityDescriptor(
 ) callconv(.Win64) NTSTATUS {
     _ = dacl_present;
     _ = dacl_defaulted;
-    log.info("RtlSetDaclSecurityDescriptor()", .{});
+    log("RtlSetDaclSecurityDescriptor()", .{});
     const desc = security_descriptor orelse return .INVALID_PARAMETER;
     desc.dacl = dacl;
     return .SUCCESS;
@@ -429,14 +431,14 @@ fn RtlAllocateAndInitializeSid(
         },
     };
     sid.* = (sid_allocator.allocator().dupe(u8, std.mem.toBytes(result_sid)[0..result_sid.size()]) catch return .NO_MEMORY).ptr;
-    log.info("RtlAllocateAndInitializeSid({})", .{result_sid});
+    log("RtlAllocateAndInitializeSid({})", .{result_sid});
     return .SUCCESS;
 }
 
 fn RtlFreeSid(
     opt_sid: ?*SecurityIdentifier,
 ) callconv(.Win64) NTSTATUS {
-    log.info("RtlFreeSid({})", .{opt_sid});
+    log("RtlFreeSid({})", .{opt_sid});
     const sid = opt_sid orelse return .INVALID_PARAMETER;
     sid_allocator.allocator().free(@ptrCast([*]u8, sid)[0..sid.size()]);
     return .SUCCESS;
@@ -445,7 +447,7 @@ fn RtlFreeSid(
 fn RtlLengthSid(
     opt_sid: ?*SecurityIdentifier,
 ) callconv(.Win64) rt.ULONG {
-    log.info("RtlLengthSid({})", .{opt_sid});
+    log("RtlLengthSid({})", .{opt_sid});
     const sid = opt_sid.?;
     return sid.size();
 }
@@ -455,7 +457,7 @@ fn RtlCreateAcl(
     length: rt.ULONG,
     revision: rt.ULONG,
 ) callconv(.Win64) NTSTATUS {
-    log.info("RtlCreateAcl()", .{});
+    log("RtlCreateAcl()", .{});
     _ = length; // Is this supposed to be used??
     (acl orelse return .INVALID_PARAMETER).* = .{
         .revision = @intCast(u8, revision),
@@ -490,7 +492,7 @@ fn RtlAddAccessAllowedAce(
     };
     ace.num_bytes = @intCast(u8, ace.size());
 
-    log.info(
+    log(
         \\RtlAddAccessAllowedAce(
         \\  0x{X}: {},
         \\  {},
@@ -515,7 +517,7 @@ fn RtlAddMandatoryAce(
     _ = flags;
     _ = mandatory_flags;
     _ = sid;
-    log.info("STUB: RtlAddMandatoryAce()", .{});
+    log("STUB: RtlAddMandatoryAce()", .{});
     return .SUCCESS;
 }
 
@@ -524,7 +526,7 @@ fn RtlGetAce(
     index: rt.ULONG,
     opt_acle: ?**AccessControlListEntry,
 ) callconv(.Win64) NTSTATUS {
-    log.info("RtlGetAce(0x{X}, {d})", .{@ptrToInt(opt_acl), index});
+    log("RtlGetAce(0x{X}, {d})", .{@ptrToInt(opt_acl), index});
     const acl = opt_acl orelse return .INVALID_PARAMETER;
     const acle = opt_acle orelse return .INVALID_PARAMETER;
     if(index >= acl.ace_count) return .INVALID_PARAMETER;
@@ -534,7 +536,7 @@ fn RtlGetAce(
 
     while(true) : (current_index += 1) {
         const current_acle = @ptrCast(*AccessControlListEntry, @alignCast(@alignOf(AccessControlListEntry),bytes.ptr));
-        //log.info("RtlGetAce: index {} acle {}", .{current_index, current_acle});
+        //log("RtlGetAce: index {} acle {}", .{current_index, current_acle});
 
         if(index == current_index) {
             // This is the one!
@@ -558,7 +560,7 @@ fn RtlSetSaclSecurityDescriptor(
     _ = sacl_present;
     _ = sacl;
     _ = sacl_defaulted;
-    log.info("RtlSetSaclSecurityDescriptor()", .{});
+    log("RtlSetSaclSecurityDescriptor()", .{});
     return .SUCCESS;
 }
 
@@ -573,7 +575,7 @@ fn memset(
     value: u8,
     size: c_int,
 ) callconv(.Win64) [*]u8 {
-    log.info("memset(0x{X}, 0x{X}, 0x{X})", .{@ptrToInt(dest), value, size});
+    log("memset(0x{X}, 0x{X}, 0x{X})", .{@ptrToInt(dest), value, size});
     @memset(dest, value, @intCast(usize, size));
     return dest;
 }
@@ -583,7 +585,7 @@ fn memcpy(
     src: [*]const u8,
     size: c_int,
 ) callconv(.Win64) [*]u8 {
-    log.info("memcpy(0x{X}, 0x{X}, 0x{X})", .{@ptrToInt(dest), @ptrToInt(src), size});
+    log("memcpy(0x{X}, 0x{X}, 0x{X})", .{@ptrToInt(dest), @ptrToInt(src), size});
     @memcpy(dest, src, @intCast(usize, size));
     return dest;
 }
@@ -593,7 +595,7 @@ fn NtAlpcCreatePort(
     opt_object_attributes: rt.PVOID, // ?*ObjectAttributes,
     opt_port_attributes: rt.PVOID, // ?*PortAttributes,
 ) callconv(.Win64) NTSTATUS {
-    log.info("STUB: NtAlpcCreatePort()", .{});
+    log("STUB: NtAlpcCreatePort()", .{});
     _ = opt_object_attributes;
     _ = opt_port_attributes;
     const port_handle = opt_port_handle orelse return .INVALID_PARAMETER;
@@ -607,7 +609,7 @@ fn NtCreateMutant(
     opt_object_attributes: rt.PVOID, // ?*ObjectAttributes,
     initial_owner: rt.BOOL,
 ) callconv(.Win64) NTSTATUS {
-    log.info("STUB: NtCreateMutant()", .{});
+    log("STUB: NtCreateMutant()", .{});
     _ = opt_handle;
     _ = desired_access;
     _ = opt_object_attributes;
@@ -618,7 +620,7 @@ fn NtCreateMutant(
 fn NtClose(
     handle: rt.HANDLE,
 ) callconv(.Win64) NTSTATUS {
-    log.info("STUB: NtClose(0x{X})", .{handle});
+    log("STUB: NtClose(0x{X})", .{handle});
     _ = handle;
     return .SUCCESS;
 }
@@ -629,7 +631,7 @@ fn RtlCreateEnvironment(
 ) callconv(.Win64) NTSTATUS {
     _ = inherit;
     _ = env;
-    log.info("STUB: RtlCreateEnvironment()", .{});
+    log("STUB: RtlCreateEnvironment()", .{});
     return .SUCCESS;
 }
 
