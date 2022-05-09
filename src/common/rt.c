@@ -20,35 +20,34 @@ int _vsnwprintf_s(
    WCHAR const *format,
    va_list args
 ) {
-	size_t written = 0;
-	size_t max = count < sizeOfBuffer - 1 ? count : sizeOfBuffer - 1;
+    size_t written = 0;
+    size_t max = count < sizeOfBuffer - 1 ? count : sizeOfBuffer - 1;
 
-	c_log(format);
+    c_log(format);
 
-	while(*format) {
-		if(*format++ == '%') {
-			switch(*format++) {
-			case 's': {
-				c_log(u"%s hit!");
-				WCHAR const *str = va_arg(args, WCHAR const *);
-				c_log(str);
-				while(*str) {
-					WRITE;
-					*buffer++ = *str++;
-				}
-				break;
-			}
-			default:
-				c_log(format-1);
-				c_panic(u"Unknown format specifier!");
-			}
-		} else {
-			WRITE;
-			*buffer++ = *(format-1);
-		}
-	}
+    while(*format) {
+        if(*format++ == '%') {
+            switch(*format++) {
+            case 's': {
+                WCHAR const *str = va_arg(args, WCHAR const *);
+                c_log(str);
+                while(*str) {
+                    WRITE;
+                    *buffer++ = *str++;
+                }
+                break;
+            }
+            default:
+                c_log(format-1);
+                c_panic(u"Unknown format specifier!");
+            }
+        } else {
+            WRITE;
+            *buffer++ = *(format-1);
+        }
+    }
 
-	if(written < sizeOfBuffer - 1) buffer[written] = 0;
+    if(written < sizeOfBuffer - 1) buffer[written] = 0;
 
-	return written;
+    return written;
 }
