@@ -13,16 +13,24 @@ void c_panic_impl(char const *function, char const *file, int line, WCHAR const 
 
 #define WRITE do { if(written == max) return written; ++written; } while(0)
 
-static int fill_buf_base10(WCHAR **buffer, size_t max, size_t written, unsigned v) {
-    unsigned curr = v % 10;
-    unsigned next = v / 10;
+static int fill_buf_unsigned(
+    WCHAR **buffer,
+    size_t max,
+    size_t written,
+    unsigned long long v,
+    int min_len,
+    unsigned base,
+    unsigned upper
+) {
+    unsigned curr = v % base;
+    unsigned next = v / base;
 
-    if(next) {
-        written = fill_buf_base10(buffer, max, written, next);
+    if(next || min_len > 0) {
+        written = fill_buf_unsigned(buffer, max, written, next, min_len - 1, base, upper);
     }
 
     WRITE;
-    *(*buffer)++ = '0' + curr;
+    *(*buffer)++ = (upper ? "0123456789ABCDEF" : "0123456789abcdef")[curr];
     return written;
 }
 
@@ -38,25 +46,39 @@ int _vsnwprintf_s(
 
     c_log(format);
 
+    int min_len = 0;
+    int upper = 1;
+    int base = 10;
+
     while(*format) {
         if(*format++ == '%') {
             switch(*format++) {
+            case '0' ... '9':
+                min_len *= 10;
+                min_len += *(format - 1) - '0';
+                continue;
             case 'i': {
                 int i = va_arg(args, int);
                 if(i < 0) {
                     WRITE;
                     *buffer++ = '-';
-                    written = fill_buf_base10(&buffer, max, written, i);
-                } else {
-                    written = fill_buf_base10(&buffer, max, written, i);
+                    i = -i;
                 }
+                if(0) {
+                case 'x':
+                    upper = 0;
+                case 'X':
+                    base = 16;
+                case 'u':
+                    i = va_arg(args, unsigned);
+                }
+                written = fill_buf_unsigned(&buffer, max, written, i, min_len, base, upper);
+                upper = 1;
+                min_len = 0;
+                base = 10;
                 break;
             }
-            case 'u': {
-                unsigned v = va_arg(args, unsigned);
-                written = fill_buf_base10(&buffer, max, written, v);
-                break;
-            }
+            case 'w': if(*format++ != 's') c_panic(u"non-s w fmt prefix");
             case 's': {
                 WCHAR const *str = va_arg(args, WCHAR const *);
                 c_log(str);
@@ -64,7 +86,7 @@ int _vsnwprintf_s(
                     WRITE;
                     *buffer++ = *str++;
                 }
-                break;
+                continue;
             }
             default:
                 c_log(format-1);
