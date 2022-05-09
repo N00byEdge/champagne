@@ -21,6 +21,7 @@ pub fn build(b: *std.build.Builder) void {
         "src/common/rt.c",
     }, &.{
         "-fms-compatibility",
+        "-fno-builtin",
         "-target", "x86_64-windows-elf",
     });
 
