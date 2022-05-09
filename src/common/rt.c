@@ -7,13 +7,12 @@
 typedef uint16_t WCHAR;
 
 void c_log_impl(char const *function, char const *file, int line, WCHAR const *msg);
-void c_panic_impl(char const *function, char const *file, int line, WCHAR const *msg);
+void c_panic_impl(char const *function, char const *file, int line, WCHAR const *msg) __attribute__((noreturn));
 #define c_log(msg) c_log_impl(__FUNCTION__, __FILE__, __LINE__, msg);
 #define c_panic(msg) c_panic_impl(__FUNCTION__, __FILE__, __LINE__, msg);
 
-// Technically wrong calling convention but it should be compatible for this one
-// Where is __win64 for clang??
-__vectorcall
+#define WRITE do { if(written == max) return written; } while(0)
+
 int _vsnwprintf_s(
    WCHAR *buffer,
    size_t sizeOfBuffer,
@@ -27,21 +26,29 @@ int _vsnwprintf_s(
 	c_log(format);
 
 	while(*format) {
-		if(*format == '%') {
-			++format;
-			switch(*format) {
+		if(*format++ == '%') {
+			switch(*format++) {
+			case 's': {
+				c_log(u"%s hit!");
+				WCHAR const *str = va_arg(args, WCHAR const *);
+				c_log(str);
+				while(*str) {
+					WRITE;
+					*buffer++ = *str++;
+				}
+				break;
+			}
 			default:
-				c_log(format);
+				c_log(format-1);
 				c_panic(u"Unknown format specifier!");
 			}
 		} else {
-			if(written < max) {
-				*buffer++ = *format++;
-			} else {
-				--written;
-			}
+			WRITE;
+			*buffer++ = *(format-1);
 		}
 	}
+
+	if(written < sizeOfBuffer - 1) buffer[written] = 0;
 
 	return written;
 }

@@ -13,13 +13,15 @@ pub fn build(b: *std.build.Builder) void {
 
     const exe = b.addExecutable("launcher", "src/launcher.zig");
     exe.setTarget(target);
-    exe.setBuildMode(mode);
+    exe.setBuildMode(.Debug);
     exe.install();
 
+    exe.want_lto = false;
     exe.addCSourceFiles(&.{
         "src/common/rt.c",
     }, &.{
-
+        "-fms-compatibility",
+        "-target", "x86_64-windows-elf",
     });
 
     const run_cmd = exe.run();

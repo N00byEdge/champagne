@@ -26,11 +26,11 @@ pub const PWSTR = ?[*:0]WCHAR;
 pub const PCWSTR = ?[*:0]const WCHAR;
 pub const LPCWSTR = ?[*:0]const WCHAR;
 
-export fn c_log_impl(function: ?[*:0]u8, file: ?[*:0]u8, line: c_int, msg: ?[*:0]WCHAR) void {
+export fn c_log_impl(function: ?[*:0]u8, file: ?[*:0]u8, line: c_int, msg: ?[*:0]WCHAR) callconv(.Win64) void {
     std.debug.print("{s}: {s}:{d}: {}\n", .{function, file, line, fmt(msg)});
 }
 
-export fn c_panic_impl(function: ?[*:0]u8, file: ?[*:0]u8, line: c_int, msg: ?[*:0]WCHAR) void {
+export fn c_panic_impl(function: ?[*:0]u8, file: ?[*:0]u8, line: c_int, msg: ?[*:0]WCHAR) callconv(.Win64) void {
     std.debug.print("{s}: {s}:{d}: {}\n", .{function, file, line, fmt(msg)});
     @panic("");
 }
@@ -51,7 +51,7 @@ pub fn Fmt(comptime T: type) type {
                 LPCSTR, PWSTR, LPCWSTR => {
                     if(self.v) |v| {
                         const span = std.mem.span(v);
-                        try writer.print("'", .{});
+                        try writer.print("(0x{X}) '", .{@ptrToInt(span.ptr)});
                         for(span) |chr| {
                             if(chr > 0x7F) {
                                 try writer.print("\\x{X:0>2}", .{chr});
@@ -84,6 +84,10 @@ pub fn toNullTerminatedUTF16Buffer(comptime ascii: []const u8) [ascii.len:0]u16 
     }
     result = result ++ [_]u16{0};
     return result[0..ascii.len:0].*;
+}
+
+pub fn pad(comptime v: anytype, comptime len: usize) [len]@TypeOf(v[0]) {
+    return v ++ ([1]@TypeOf(v[0]){0} ** (len - v.len));
 }
 
 pub fn fmt(val: anytype) Fmt(@TypeOf(val)) {
@@ -177,16 +181,20 @@ comptime {
 }
 
 const KSystemTime = extern struct {
-    idk: u64 = 0x51515151,
+    idk0: u32 = 0x51515151,
+    idk1: u32 = 0x53535353,
     wtf: u32 = 0x52525252,
 };
 
 const KUserSharedData = extern struct {
-    TickCountLow: u32 = 0x40404040,
-    TickCountMultiplier: u32 = 0x40404041,
-    InterruptTime: KSystemTime = .{},
-    SystemTime: KSystemTime = .{},
-    TimeZoneBias: KSystemTime = .{},
+    tick_count_low: u32 = 0x40404040,        // 0x00
+    tick_count_multiplier: u32 = 0x40404041, // 0x04
+    interrupt_time: KSystemTime = .{},       // 0x08
+    system_time: KSystemTime = .{},          // 0x14
+    time_zone_bias: KSystemTime = .{},       // 0x20
+    image_number_low: USHORT = 0,            // 0x2C
+    image_number_high: USHORT = 42,          // 0x2E
+    nt_system_root: [0x104]WCHAR = pad(toNullTerminatedUTF16Buffer("C:\\Windows"), 0x104), // 0x30
 };
 
 pub var pparam: ProcessParameters = undefined;
