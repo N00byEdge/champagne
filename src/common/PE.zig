@@ -50,7 +50,7 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, import_resolve_cont
 
     const virt_size = ((max_addr - min_addr) + 0xFFF) & ~@as(usize, 0xFFF);
     const vmem = try std.os.mmap(
-        @intToPtr([*]align(4096) u8, min_addr),
+        @intToPtr([*]align(4096) u8, min_addr + coff_file.pe_header.image_base),
         virt_size,
         std.os.PROT.NONE,
         std.os.MAP.ANONYMOUS | std.os.MAP.PRIVATE,
@@ -59,7 +59,7 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, import_resolve_cont
     );
     errdefer std.os.munmap(vmem);
 
-    const load_delta = @ptrToInt(vmem.ptr) -% min_addr;
+    const load_delta = @ptrToInt(vmem.ptr) -% (min_addr + coff_file.pe_header.image_base);
     log("Allocated executable space at 0x{X} (delta 0x{X})", .{@ptrToInt(vmem.ptr), load_delta});
 
     for(coff_file.sections.items) |s| {
@@ -284,5 +284,5 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, import_resolve_cont
     }
     log("Section permissions set", .{});
 
-    return coff_file.pe_header.entry_addr +% load_delta;
+    return coff_file.pe_header.entry_addr +% load_delta +% coff_file.pe_header.image_base;
 }
