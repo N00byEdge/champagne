@@ -47,7 +47,7 @@ int _vsnwprintf_s(
         }
     }
 
-    if(written < sizeOfBuffer - 1) buffer[written] = 0;
+    if(written <= sizeOfBuffer - 1) buffer[written] = 0;
 
     return written;
 }
