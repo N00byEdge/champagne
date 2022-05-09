@@ -13,7 +13,7 @@ void c_panic_impl(char const *function, char const *file, int line, WCHAR const 
 
 #define WRITE do { if(written == max) return written; ++written; } while(0)
 
-int fill_buf_base10(WCHAR **buffer, size_t max, size_t written, unsigned v) {
+static int fill_buf_base10(WCHAR **buffer, size_t max, size_t written, unsigned v) {
     unsigned curr = v % 10;
     unsigned next = v / 10;
 
