@@ -76,7 +76,7 @@ int _vsnwprintf_s(
                 upper = 1;
                 min_len = 0;
                 base = 10;
-                break;
+                continue;
             }
             case 'w': if(*format++ != 's') c_panic(u"non-s w fmt prefix");
             case 's': {
