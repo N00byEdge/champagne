@@ -11,7 +11,20 @@ void c_panic_impl(char const *function, char const *file, int line, WCHAR const 
 #define c_log(msg) c_log_impl(__FUNCTION__, __FILE__, __LINE__, msg);
 #define c_panic(msg) c_panic_impl(__FUNCTION__, __FILE__, __LINE__, msg);
 
-#define WRITE do { if(written == max) return written; } while(0)
+#define WRITE do { if(written == max) return written; ++written; } while(0)
+
+int fill_buf_base10(WCHAR **buffer, size_t max, size_t written, unsigned v) {
+    unsigned curr = v % 10;
+    unsigned next = v / 10;
+
+    if(next) {
+        written = fill_buf_base10(buffer, max, written, next);
+    }
+
+    WRITE;
+    *(*buffer)++ = '0' + curr;
+    return written;
+}
 
 int _vsnwprintf_s(
    WCHAR *buffer,
@@ -28,6 +41,22 @@ int _vsnwprintf_s(
     while(*format) {
         if(*format++ == '%') {
             switch(*format++) {
+            case 'i': {
+                int i = va_arg(args, int);
+                if(i < 0) {
+                    WRITE;
+                    *buffer++ = '-';
+                    written = fill_buf_base10(&buffer, max, written, i);
+                } else {
+                    written = fill_buf_base10(&buffer, max, written, i);
+                }
+                break;
+            }
+            case 'u': {
+                unsigned v = va_arg(args, unsigned);
+                written = fill_buf_base10(&buffer, max, written, v);
+                break;
+            }
             case 's': {
                 WCHAR const *str = va_arg(args, WCHAR const *);
                 c_log(str);
