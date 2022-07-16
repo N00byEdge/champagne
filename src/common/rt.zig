@@ -27,11 +27,11 @@ pub const PCWSTR = ?[*:0]const WCHAR;
 pub const LPCWSTR = ?[*:0]const WCHAR;
 
 export fn c_log_impl(function: ?[*:0]u8, file: ?[*:0]u8, line: c_int, msg: ?[*:0]WCHAR) callconv(.Win64) void {
-    std.debug.print("{s}: {s}:{d}: {}\n", .{function, file, line, fmt(msg)});
+    std.debug.print("{s}: {s}:{d}: {}\n", .{ function, file, line, fmt(msg) });
 }
 
 export fn c_panic_impl(function: ?[*:0]u8, file: ?[*:0]u8, line: c_int, msg: ?[*:0]WCHAR) callconv(.Win64) void {
-    std.debug.print("{s}: {s}:{d}: {}\n", .{function, file, line, fmt(msg)});
+    std.debug.print("{s}: {s}:{d}: {}\n", .{ function, file, line, fmt(msg) });
     @panic("");
 }
 
@@ -47,13 +47,13 @@ pub fn Fmt(comptime T: type) type {
         ) !void {
             _ = layout;
             _ = opts;
-            switch(T) {
+            switch (T) {
                 LPCSTR, PWSTR, LPCWSTR => {
-                    if(self.v) |v| {
+                    if (self.v) |v| {
                         const span = std.mem.span(v);
                         try writer.print("(0x{X}) '", .{@ptrToInt(span.ptr)});
-                        for(span) |chr| {
-                            if(chr > 0x7F) {
+                        for (span) |chr| {
+                            if (chr > 0x7F) {
                                 try writer.print("\\x{X:0>2}", .{chr});
                             } else {
                                 try writer.print("{c}", .{@truncate(u8, chr)});
@@ -65,7 +65,7 @@ pub fn Fmt(comptime T: type) type {
                     }
                 },
                 BOOL => {
-                    if(self.v != FALSE) {
+                    if (self.v != FALSE) {
                         try writer.print("TRUE", .{});
                     } else {
                         try writer.print("FALSE", .{});
@@ -79,11 +79,11 @@ pub fn Fmt(comptime T: type) type {
 
 pub fn toNullTerminatedUTF16Buffer(comptime ascii: []const u8) [ascii.len:0]u16 {
     comptime var result: []const u16 = &[_]u16{};
-    inline for(ascii) |chr| {
+    inline for (ascii) |chr| {
         result = result ++ &[_]u16{chr};
     }
     result = result ++ [_]u16{0};
-    return result[0..ascii.len:0].*;
+    return result[0..ascii.len :0].*;
 }
 
 pub fn pad(comptime v: anytype, comptime len: usize) [len]@TypeOf(v[0]) {
@@ -91,7 +91,7 @@ pub fn pad(comptime v: anytype, comptime len: usize) [len]@TypeOf(v[0]) {
 }
 
 pub fn fmt(val: anytype) Fmt(@TypeOf(val)) {
-    return Fmt(@TypeOf(val)){.v = val};
+    return Fmt(@TypeOf(val)){ .v = val };
 }
 
 pub const GUID = @import("guids.zig").GUID;
@@ -131,18 +131,18 @@ pub const UnicodeString = extern struct {
     }
 
     pub fn makeSpaceFor(self: *@This(), num_chars: usize, alloc: std.mem.Allocator) !void {
-        if(self.freeCapacity() < num_chars) {
+        if (self.freeCapacity() < num_chars) {
             const new_capacity = std.math.max(
                 (num_chars << 1) + self.length, // new length
                 self.capacity << 1, // double capacity
             );
-            self.buffer = (try alloc.realloc(self.buffer.?[0..self.capacity >> 1], new_capacity >> 1)).ptr;
+            self.buffer = (try alloc.realloc(self.buffer.?[0 .. self.capacity >> 1], new_capacity >> 1)).ptr;
             self.capacity = @intCast(USHORT, new_capacity);
         }
     }
 
     pub fn appendAssumeCapacity(self: *@This(), appendage: []const WCHAR) void {
-        std.mem.copy(WCHAR, self.buffer.?[self.length>>1..(self.length>>1) + appendage.len], appendage);
+        std.mem.copy(WCHAR, self.buffer.?[self.length >> 1 .. (self.length >> 1) + appendage.len], appendage);
         self.length += @intCast(USHORT, appendage.len << 1);
     }
 
@@ -152,7 +152,7 @@ pub const UnicodeString = extern struct {
     }
 
     pub fn chars(self: @This()) []const WCHAR {
-        return self.buffer.?[0..self.length >> 1];
+        return self.buffer.?[0 .. self.length >> 1];
     }
 
     pub fn format(
@@ -163,11 +163,11 @@ pub const UnicodeString = extern struct {
     ) !void {
         _ = layout;
         _ = opts;
-        if(self.buffer) |buf| {
-            const span = buf[0..self.length>>1];
+        if (self.buffer) |buf| {
+            const span = buf[0 .. self.length >> 1];
             try writer.print("'", .{});
-            for(span) |chr| {
-                if(chr > 0x7F) {
+            for (span) |chr| {
+                if (chr > 0x7F) {
                     try writer.print("\\x{X:0>2}", .{chr});
                 } else {
                     try writer.print("{c}", .{@truncate(u8, chr)});
@@ -220,14 +220,18 @@ const KSystemTime = extern struct {
 };
 
 const KUserSharedData = extern struct {
-    tick_count_low: u32 = 0x40404040,        // 0x00
-    tick_count_multiplier: u32 = 0x40404041, // 0x04
-    interrupt_time: KSystemTime = .{},       // 0x08
-    system_time: KSystemTime = .{},          // 0x14
-    time_zone_bias: KSystemTime = .{},       // 0x20
-    image_number_low: USHORT = 0,            // 0x2C
-    image_number_high: USHORT = 42,          // 0x2E
+    tick_count_low: u32 = 0x40404040,        // 0x0000
+    tick_count_multiplier: u32 = 0x40404041, // 0x0004
+    interrupt_time: KSystemTime = .{},       // 0x0008
+    system_time: KSystemTime = .{},          // 0x0014
+    time_zone_bias: KSystemTime = .{},       // 0x0020
+    image_number_low: USHORT = 0,            // 0x002C
+    image_number_high: USHORT = 42,          // 0x002E
     nt_system_root: [0x104]WCHAR = pad(toNullTerminatedUTF16Buffer("C:\\Windows"), 0x104), // 0x30
+    max_stack_trace_depth: ULONG = 20,       // 0x0238
+    crypto_exponent: ULONG = 0x10001,        // 0x023C
+    time_zone_id: ULONG = 0,                 // 0x0240
+    large_page_minimum: ULONG = 0x1000 << 9, // 0x0244
 };
 
 pub var pparam: ProcessParameters = undefined;
@@ -263,11 +267,9 @@ pub fn init(image_path_name: [:0]WCHAR, command_line: [:0]WCHAR) !void {
     teb.peb = &peb;
     teb.self = &teb;
 
-    asm volatile(
-        "WRGSBASE %[teb]"
+    asm volatile ("WRGSBASE %[teb]"
         :
-        :
-            [teb] "r" (@ptrToInt(&teb))
+        : [teb] "r" (@ptrToInt(&teb)),
     );
 
     pparam.image_path_name = UnicodeString.initFromBuffer(image_path_name);
@@ -276,5 +278,5 @@ pub fn init(image_path_name: [:0]WCHAR, command_line: [:0]WCHAR) !void {
 }
 
 pub fn call_entry(entry_point: usize) c_int {
-    return @intToPtr(fn(*PEB) callconv(.Win64) c_int, entry_point)(&peb);
+    return @intToPtr(fn (*PEB) callconv(.Win64) c_int, entry_point)(&peb);
 }

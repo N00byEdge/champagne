@@ -11,21 +11,21 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){
 
 const ResolveContext = struct {
     fn isBuiltinModuleName(module_name: []const u8) bool {
-        if(std.mem.eql(u8, module_name, "ntdll.dll")) {
+        if (std.mem.eql(u8, module_name, "ntdll.dll")) {
             return true;
         }
         return false;
     }
 
     fn resolveBuiltinSymbol(symbol_name: []const u8) ?*const anyopaque {
-        if(std.mem.eql(u8, symbol_name, "_vsnwprintf_s")) {
-            return @extern(*const anyopaque, .{.name = "_vsnwprintf_s", .linkage = .Strong});
+        if (std.mem.eql(u8, symbol_name, "_vsnwprintf_s")) {
+            return @extern(*const anyopaque, .{ .name = "_vsnwprintf_s", .linkage = .Strong });
         }
         return ntdll.builtin_symbols.get(symbol_name);
     }
 
     pub fn findSymbol(module_name: []const u8, symbol_name: []const u8) ?*const anyopaque {
-        if(isBuiltinModuleName(module_name)) {
+        if (isBuiltinModuleName(module_name)) {
             return resolveBuiltinSymbol(symbol_name);
         }
         return null;

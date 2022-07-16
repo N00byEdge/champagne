@@ -15,11 +15,9 @@ fn stub(comptime str: []const u8) *const anyopaque {
     }.f);
 }
 
-fn RtlNormalizeProcessParams(
-    params: ?*rt.ProcessParameters
-) callconv(.Win64) ?*rt.ProcessParameters {
+fn RtlNormalizeProcessParams(params: ?*rt.ProcessParameters) callconv(.Win64) ?*rt.ProcessParameters {
     log("Normalizing params", .{});
-    if(params != &rt.pparam) {
+    if (params != &rt.pparam) {
         @panic("Wrong pparams passed in!");
     }
     return params;
@@ -27,20 +25,20 @@ fn RtlNormalizeProcessParams(
 
 fn iswspace(chr: rt.WCHAR) callconv(.Win64) rt.BOOL {
     //log("iswspace 0x{X} ('{c}')", .{chr, if(chr <= 0x7F) @truncate(u8, chr) else '!'});
-    if(chr > 0x7F) {
+    if (chr > 0x7F) {
         @panic("TODO: non-ascii");
     }
-    if(std.ascii.isSpace(@intCast(u8, chr))) {
+    if (std.ascii.isSpace(@intCast(u8, chr))) {
         return rt.TRUE;
     }
     return rt.FALSE;
 }
 
-var rtl_global_heap = std.heap.GeneralPurposeAllocator(.{}){.backing_allocator = std.heap.page_allocator};
+var rtl_global_heap = std.heap.GeneralPurposeAllocator(.{}){ .backing_allocator = std.heap.page_allocator };
 
 fn RtlAllocateHeap(heap_handle: ?*anyopaque, flags: rt.ULONG, size: rt.SIZE_T) callconv(.Win64) ?*anyopaque {
-    log("RtlAllocateHeap(handle=0x{X}, flags=0x{X}, size=0x{X})", .{@ptrToInt(heap_handle), flags, size});
-    if(heap_handle) |_| {
+    log("RtlAllocateHeap(handle=0x{X}, flags=0x{X}, size=0x{X})", .{ @ptrToInt(heap_handle), flags, size });
+    if (heap_handle) |_| {
         @panic("RtlAllocateHeap with handle");
     }
 
@@ -55,7 +53,7 @@ fn RtlAllocateHeap(heap_handle: ?*anyopaque, flags: rt.ULONG, size: rt.SIZE_T) c
 
 fn RtlFreeHeap(heap_handle: ?*anyopaque, flags: rt.ULONG, base_addr: ?[*]u8) callconv(.Win64) rt.LOGICAL {
     // TODO: Don't just leak memory here
-    log("RtlFreeHeap(handle=0x{X}, flags = 0x{X}, ptr=0x{X})", .{@ptrToInt(heap_handle), flags, @ptrToInt(base_addr)});
+    log("RtlFreeHeap(handle=0x{X}, flags = 0x{X}, ptr=0x{X})", .{ @ptrToInt(heap_handle), flags, @ptrToInt(base_addr) });
     return rt.TRUE;
 }
 
@@ -65,7 +63,7 @@ fn NtSetInformationProcess(
     process_information: rt.PVOID,
     process_information_length: rt.ULONG,
 ) callconv(.Win64) NTSTATUS {
-    log("NtSetInformationProcess(handle=0x{X}, class={s}, info=0x{x}, length={d})", .{process_handle, @tagName(process_information_class), @ptrToInt(process_information), process_information_length});
+    log("NtSetInformationProcess(handle=0x{X}, class={s}, info=0x{x}, length={d})", .{ process_handle, @tagName(process_information_class), @ptrToInt(process_information), process_information_length });
     return .SUCCESS;
 }
 
@@ -73,9 +71,9 @@ fn RtlSetHeapInformation(
     heap_handle: rt.PVOID,
     heap_information_class: HeapInformationClass,
     heap_information: rt.PVOID,
-    heap_information_length: rt.SIZE_T
+    heap_information_length: rt.SIZE_T,
 ) callconv(.Win64) NTSTATUS {
-    log("RtlSetHeapInformation(handle=0x{X}, class={s}, info=0x{x}, length={d})", .{@ptrToInt(heap_handle), @tagName(heap_information_class), @ptrToInt(heap_information), heap_information_length});
+    log("RtlSetHeapInformation(handle=0x{X}, class={s}, info=0x{x}, length={d})", .{ @ptrToInt(heap_handle), @tagName(heap_information_class), @ptrToInt(heap_information), heap_information_length });
     return .SUCCESS;
 }
 
@@ -87,7 +85,7 @@ fn EtwEventRegister(
     callback_context: rt.PVOID,
     result_handle: ?*REGHANDLE,
 ) callconv(.Win64) Error {
-    log("EtwEventRegister(guid={}, callback=0x{X}, context=0x{x}, result_out=0x{X})", .{provider_id, @ptrToInt(callback), @ptrToInt(callback_context), @ptrToInt(result_handle)});
+    log("EtwEventRegister(guid={}, callback=0x{X}, context=0x{x}, result_out=0x{X})", .{ provider_id, @ptrToInt(callback), @ptrToInt(callback_context), @ptrToInt(result_handle) });
     return .SUCCESS;
 }
 
@@ -104,7 +102,7 @@ const WmidPRequestCode = enum(u32) {
     ExecuteMethod = 9,
 };
 
-const WMidPRequest = fn(
+const WMidPRequest = fn (
     request_code: WmidPRequestCode,
     request_context: rt.PVOID,
     buffer_size: ?*rt.ULONG,
@@ -156,7 +154,7 @@ fn TpSetPoolMinThreads(
     tp: rt.PVOID,
     min_threads: rt.ULONG,
 ) callconv(.Win64) NTSTATUS {
-    log("TpSetPoolMinThreads(0x{X}, {d})", .{@ptrToInt(tp orelse return .INVALID_PARAMETER), min_threads});
+    log("TpSetPoolMinThreads(0x{X}, {d})", .{ @ptrToInt(tp orelse return .INVALID_PARAMETER), min_threads });
     return .SUCCESS;
 }
 
@@ -194,11 +192,11 @@ fn NtQueryInformationJobObject(
     len: rt.ULONG,
     ret_len: ?*rt.ULONG,
 ) callconv(.Win64) NTSTATUS {
-    log("NtQueryInformationJobObject(handle=0x{X}, class={s}, len=0x{x}, ret_len={d})", .{handle, @tagName(class), len, ret_len});
+    log("NtQueryInformationJobObject(handle=0x{X}, class={s}, len=0x{x}, ret_len={d})", .{ handle, @tagName(class), len, ret_len });
     return .SUCCESS;
 }
 
-var rtl_unicode_string_heap = std.heap.GeneralPurposeAllocator(.{}){.backing_allocator = std.heap.page_allocator};
+var rtl_unicode_string_heap = std.heap.GeneralPurposeAllocator(.{}){ .backing_allocator = std.heap.page_allocator };
 
 fn RtlInitUnicodeStringEx(
     dest: ?*rt.UnicodeString,
@@ -207,9 +205,7 @@ fn RtlInitUnicodeStringEx(
     log("RtlInitUnicodeStringEx({})", .{rt.fmt(src)});
     const str = src orelse return .INVALID_PARAMETER;
     (dest orelse return .INVALID_PARAMETER).* =
-        rt.UnicodeString.initFromBuffer(
-            rtl_unicode_string_heap.allocator().dupeZ(u16, std.mem.span(str)) catch return .NO_MEMORY
-        );
+        rt.UnicodeString.initFromBuffer(rtl_unicode_string_heap.allocator().dupeZ(u16, std.mem.span(str)) catch return .NO_MEMORY);
     return .SUCCESS;
 }
 
@@ -217,7 +213,7 @@ fn RtlAppendUnicodeStringToString(
     dest: ?*rt.UnicodeString,
     src: ?*const rt.UnicodeString,
 ) callconv(.Win64) NTSTATUS {
-    log("RtlAppendUnicodeStringToString({} <- {})", .{dest, src});
+    log("RtlAppendUnicodeStringToString({} <- {})", .{ dest, src });
     (dest orelse return .INVALID_PARAMETER).append(
         (src orelse return .INVALID_PARAMETER).chars(),
         rtl_unicode_string_heap.allocator(),
@@ -229,7 +225,7 @@ fn RtlAppendUnicodeToString(
     dest: ?*rt.UnicodeString,
     src: ?[*:0]rt.WCHAR,
 ) callconv(.Win64) NTSTATUS {
-    log("RtlAppendUnicodeToString({} <- {})", .{dest, rt.fmt(src)});
+    log("RtlAppendUnicodeToString({} <- {})", .{ dest, rt.fmt(src) });
     (dest orelse return .INVALID_PARAMETER).append(
         std.mem.span(src orelse return .INVALID_PARAMETER),
         rtl_unicode_string_heap.allocator(),
@@ -241,7 +237,7 @@ fn RtlInitUnicodeString(
     dest: ?*rt.UnicodeString,
     src: rt.PCWSTR,
 ) callconv(.Win64) void {
-    if(RtlInitUnicodeStringEx(dest, src) != .SUCCESS) {
+    if (RtlInitUnicodeStringEx(dest, src) != .SUCCESS) {
         log("RtlInitUnicodeString: RtlInitUnicodeStringEx failed!", .{});
     }
 }
@@ -251,8 +247,8 @@ fn RtlSetThreadIsCritical(
     old_value: ?*rt.BOOL,
     check_flag: rt.BOOL,
 ) callconv(.Win64) NTSTATUS {
-    if(old_value) |o| o.* = rt.FALSE;
-    log("RtlSetThreadIsCritical({},check_flag={})", .{rt.fmt(new_value), rt.fmt(check_flag)});
+    if (old_value) |o| o.* = rt.FALSE;
+    log("RtlSetThreadIsCritical({},check_flag={})", .{ rt.fmt(new_value), rt.fmt(check_flag) });
     return .SUCCESS;
 }
 
@@ -272,20 +268,20 @@ fn RtlCreateTagHeap(
     tag_name: rt.PWSTR,
     tag_sub_name: rt.PWSTR,
 ) callconv(.Win64) Error {
-    log("RtlCreateTagHeap(handle=0x{X}, flags=0x{X}, tag_name={}, tag_sub_name={})", .{heap_handle, flags, rt.fmt(tag_name), rt.fmt(tag_sub_name)});
+    log("RtlCreateTagHeap(handle=0x{X}, flags=0x{X}, tag_name={}, tag_sub_name={})", .{ heap_handle, flags, rt.fmt(tag_name), rt.fmt(tag_sub_name) });
     return .SUCCESS;
 }
 
 fn giveSystemInfo(ret_ptr: rt.PVOID, ret_max_size: rt.ULONG, ret_out_size: ?*rt.ULONG, comptime T: type) NTSTATUS {
     const copy_size = std.math.min(@sizeOf(T), ret_max_size);
-    if(ret_out_size) |out|
+    if (ret_out_size) |out|
         out.* = @intCast(rt.ULONG, @sizeOf(T));
 
-    if(ret_ptr) |p| {
+    if (ret_ptr) |p| {
         @memcpy(@ptrCast([*]u8, p), @intToPtr([*]const u8, @ptrToInt(&T{})), copy_size);
     }
 
-    if(ret_max_size < @sizeOf(T)) {
+    if (ret_max_size < @sizeOf(T)) {
         return .INFO_LENGTH_MISMATCH;
     } else {
         return .SUCCESS;
@@ -304,8 +300,8 @@ fn NtQuerySystemInformation(
     _ = ret_max_size;
     _ = ret_out_size;
     log("NtQuerySystemInformation(class=0x{X})", .{@enumToInt(class)});
-    log("NtQuerySystemInformation(class=0x{X} ('{s}'), max_size=0x{X})", .{@enumToInt(class), @tagName(class), ret_max_size});
-    return switch(class) {
+    log("NtQuerySystemInformation(class=0x{X} ('{s}'), max_size=0x{X})", .{ @enumToInt(class), @tagName(class), ret_max_size });
+    return switch (class) {
         .Basic => giveSystemInfo(ret_ptr, ret_max_size, ret_out_size, extern struct {
             reserved: rt.ULONG = 0,
             timer_resolution: rt.ULONG = 1_000_000_000,
@@ -349,7 +345,7 @@ fn NtQuerySystemInformation(
             aff: [MAXIMUM_NODE_COUNT]GroupAffinity = [1]GroupAffinity{.{}} ++ ([1]GroupAffinity{undefined} ** (MAXIMUM_NODE_COUNT - 1)),
 
             comptime {
-                if(@sizeOf(@This()) != 0x408) @compileError("wtf");
+                if (@sizeOf(@This()) != 0x408) @compileError("wtf");
             }
         }),
         .FirmwareTableInformation => giveSystemInfo(ret_ptr, ret_max_size, ret_out_size, extern struct {
@@ -380,10 +376,10 @@ fn RtlAdjustPrivilege(
     current_thread: rt.BOOL,
     enabled: ?*rt.BOOL,
 ) callconv(.Win64) NTSTATUS {
-    log("RtlAdjustPrivilege(priv={s}, enable=0x{X})", .{@tagName(priv), enable});
+    log("RtlAdjustPrivilege(priv={s}, enable=0x{X})", .{ @tagName(priv), enable });
     _ = current_thread;
-    if(enabled) |e| e.* = rt.TRUE;
-    switch(priv) {
+    if (enabled) |e| e.* = rt.TRUE;
+    switch (priv) {
         .Shutdown => return .SUCCESS,
         else => return .INVALID_PARAMETER,
     }
@@ -399,9 +395,9 @@ fn NtRaiseHardError(
 ) callconv(.Win64) NTSTATUS {
     _ = params;
     _ = unicode_string_parameter_mask;
-    log("NtRaiseHardError(status=0x{X}, ropt=0x{X})", .{@enumToInt(error_status), @enumToInt(response_option)});
-    log("NtRaiseHardError(status={s}, params={d}, ropt={s})", .{@tagName(error_status), num_params, @tagName(response_option)});
-    if(response) |r| r.* = .NotHandled;
+    log("NtRaiseHardError(status=0x{X}, ropt=0x{X})", .{ @enumToInt(error_status), @enumToInt(response_option) });
+    log("NtRaiseHardError(status={s}, params={d}, ropt={s})", .{ @tagName(error_status), num_params, @tagName(response_option) });
+    if (response) |r| r.* = .NotHandled;
     return .SUCCESS;
 }
 
@@ -409,7 +405,7 @@ fn NtTerminateProcess(
     process_handle: rt.HANDLE,
     exit_status: NTSTATUS,
 ) callconv(.Win64) NTSTATUS {
-    log("NtTerminateProcess(handle=0x{X}, status='{s}')", .{process_handle, @tagName(exit_status)});
+    log("NtTerminateProcess(handle=0x{X}, status='{s}')", .{ process_handle, @tagName(exit_status) });
     std.os.exit(0);
 }
 
@@ -439,7 +435,7 @@ fn RtlSetDaclSecurityDescriptor(
     return .SUCCESS;
 }
 
-var sid_allocator = std.heap.GeneralPurposeAllocator(.{}){.backing_allocator = std.heap.page_allocator};
+var sid_allocator = std.heap.GeneralPurposeAllocator(.{}){ .backing_allocator = std.heap.page_allocator };
 
 fn RtlAllocateAndInitializeSid(
     sid_auth: ?*SecurityIdentifierAuthority,
@@ -461,14 +457,14 @@ fn RtlAllocateAndInitializeSid(
         .sub_authority_count = sub_count,
         .identifier_authority = auth.*,
         .sub_authorities = .{
-            if(sub_count >= 1) sub_authority0 else undefined,
-            if(sub_count >= 2) sub_authority1 else undefined,
-            if(sub_count >= 3) sub_authority2 else undefined,
-            if(sub_count >= 4) sub_authority3 else undefined,
-            if(sub_count >= 5) sub_authority4 else undefined,
-            if(sub_count >= 6) sub_authority5 else undefined,
-            if(sub_count >= 7) sub_authority6 else undefined,
-            if(sub_count >= 8) sub_authority7 else undefined,
+            if (sub_count >= 1) sub_authority0 else undefined,
+            if (sub_count >= 2) sub_authority1 else undefined,
+            if (sub_count >= 3) sub_authority2 else undefined,
+            if (sub_count >= 4) sub_authority3 else undefined,
+            if (sub_count >= 5) sub_authority4 else undefined,
+            if (sub_count >= 6) sub_authority5 else undefined,
+            if (sub_count >= 7) sub_authority6 else undefined,
+            if (sub_count >= 8) sub_authority7 else undefined,
         },
     };
     sid.* = (sid_allocator.allocator().dupe(u8, std.mem.toBytes(result_sid)[0..result_sid.size()]) catch return .NO_MEMORY).ptr;
@@ -520,7 +516,7 @@ fn RtlAddAccessAllowedAce(
     const sid = opt_sid orelse return .INVALID_PARAMETER;
     _ = ace_revision;
 
-    var ace = AccessControlListEntry {
+    var ace = AccessControlListEntry{
         .type = .allowed,
         .num_bytes = undefined,
         .flags = 0,
@@ -538,8 +534,7 @@ fn RtlAddAccessAllowedAce(
         \\  0x{X}: {},
         \\  {},
         \\)
-        , .{@ptrToInt(acl), acl, ace}
-    );
+    , .{ @ptrToInt(acl), acl, ace });
     @memcpy(@ptrCast([*]u8, acl) + acl.acl_size, @ptrCast([*]const u8, &ace), ace.size());
     acl.ace_count += 1;
     acl.acl_size += ace.num_bytes;
@@ -567,19 +562,19 @@ fn RtlGetAce(
     index: rt.ULONG,
     opt_acle: ?**AccessControlListEntry,
 ) callconv(.Win64) NTSTATUS {
-    log("RtlGetAce(0x{X}, {d})", .{@ptrToInt(opt_acl), index});
+    log("RtlGetAce(0x{X}, {d})", .{ @ptrToInt(opt_acl), index });
     const acl = opt_acl orelse return .INVALID_PARAMETER;
     const acle = opt_acle orelse return .INVALID_PARAMETER;
-    if(index >= acl.ace_count) return .INVALID_PARAMETER;
+    if (index >= acl.ace_count) return .INVALID_PARAMETER;
 
     var bytes = @ptrCast([*]u8, acl)[@sizeOf(AccessControlList)..acl.acl_size];
     var current_index: usize = 0;
 
-    while(true) : (current_index += 1) {
-        const current_acle = @ptrCast(*AccessControlListEntry, @alignCast(@alignOf(AccessControlListEntry),bytes.ptr));
+    while (true) : (current_index += 1) {
+        const current_acle = @ptrCast(*AccessControlListEntry, @alignCast(@alignOf(AccessControlListEntry), bytes.ptr));
         //log("RtlGetAce: index {} acle {}", .{current_index, current_acle});
 
-        if(index == current_index) {
+        if (index == current_index) {
             // This is the one!
             acle.* = current_acle;
             return .SUCCESS;
@@ -606,8 +601,7 @@ fn RtlSetSaclSecurityDescriptor(
 }
 
 // TODO: Find docs on this
-fn RtlAddProcessTrustLabelAce(
-) callconv(.Win64) NTSTATUS {
+fn RtlAddProcessTrustLabelAce() callconv(.Win64) NTSTATUS {
     return .INVALID_PARAMETER;
 }
 
@@ -616,7 +610,7 @@ fn memset(
     value: u8,
     size: c_int,
 ) callconv(.Win64) [*]u8 {
-    log("memset(0x{X}, 0x{X}, 0x{X})", .{@ptrToInt(dest), value, size});
+    log("memset(0x{X}, 0x{X}, 0x{X})", .{ @ptrToInt(dest), value, size });
     @memset(dest, value, @intCast(usize, size));
     return dest;
 }
@@ -626,7 +620,7 @@ fn memcpy(
     src: [*]const u8,
     size: c_int,
 ) callconv(.Win64) [*]u8 {
-    log("memcpy(0x{X}, 0x{X}, 0x{X})", .{@ptrToInt(dest), @ptrToInt(src), size});
+    log("memcpy(0x{X}, 0x{X}, 0x{X})", .{ @ptrToInt(dest), @ptrToInt(src), size });
     @memcpy(dest, src, @intCast(usize, size));
     return dest;
 }
@@ -644,6 +638,18 @@ fn NtAlpcCreatePort(
     return .SUCCESS;
 }
 
+fn NtOpenDirectoryObject(
+    opt_dir_handle: ?*rt.HANDLE,
+    desired_access: AccessMask,
+    opt_object_attributes: ?*ObjectAttributes,
+) callconv(.Win64) NTSTATUS {
+    _ = desired_access;
+    const dir_handle = opt_dir_handle orelse return .INVALID_PARAMETER;
+    _ = dir_handle;
+    log("NtOpenDirectoryObject({})", .{opt_object_attributes});
+    return .SUCCESS;
+}
+
 fn NtCreateMutant(
     opt_handle: ?*rt.HANDLE,
     desired_access: AccessMask,
@@ -655,6 +661,18 @@ fn NtCreateMutant(
     _ = desired_access;
     _ = opt_object_attributes;
     _ = initial_owner;
+    return .SUCCESS;
+}
+
+fn NtOpenKey(
+    opt_handle: ?*rt.HANDLE,
+    desired_access: AccessMask,
+    opt_object_attributes: ?*ObjectAttributes,
+) callconv(.Win64) NTSTATUS {
+    _ = opt_object_attributes;
+    log("STUB: NtOpenKey({})", .{opt_object_attributes});
+    _ = opt_handle;
+    _ = desired_access;
     return .SUCCESS;
 }
 
@@ -749,7 +767,7 @@ const SecurityIdentifier = extern struct {
         try writer.print("SecurityIdentifier{{ .revision = {d}, .identifier_authority = {any}, .sub = {any}", .{
             self.revision,
             self.identifier_authority,
-            self.sub_authorities[0..self.sub_authority_count]
+            self.sub_authorities[0..self.sub_authority_count],
         });
     }
 };
@@ -808,8 +826,8 @@ const AccessControlListEntry = extern struct {
     },
 
     pub fn size(self: *@This()) u8 {
-        inline for(@typeInfo(Type).Enum.fields) |f| {
-            if(@enumToInt(self.type) == f.value) {
+        inline for (@typeInfo(Type).Enum.fields) |f| {
+            if (@enumToInt(self.type) == f.value) {
                 return @offsetOf(@This(), "u") + @sizeOf(@TypeOf(@field(self.u, f.name))) - @sizeOf(SecurityIdentifier) + @field(self.u, f.name).sid.size();
             }
             unreachable;
@@ -824,7 +842,7 @@ const AccessControlListEntry = extern struct {
     ) !void {
         _ = layout;
         _ = opts;
-        try writer.print("AccessControlListEntry{{ .flags = 0x{X}, .type = {d} }}", .{self.flags, @enumToInt(self.type)});
+        try writer.print("AccessControlListEntry{{ .flags = 0x{X}, .type = {d} }}", .{ self.flags, @enumToInt(self.type) });
     }
 };
 
@@ -896,305 +914,300 @@ const Privilege = enum(rt.ULONG) {
     Relabel = 32,
     IncreaseWorkingSet = 33,
     TimeZone = 34,
-    CreateSymbolicLink = 35
+    CreateSymbolicLink = 35,
 };
 
-const HeapInformationClass = enum(u32) {
-  HeapCompatibilityInformation = 0,
-  HeapEnableTerminationOnCorruption = 1,
-  HeapOptimizeResources = 3,
-  HeapTag
-};
+const HeapInformationClass = enum(u32) { HeapCompatibilityInformation = 0, HeapEnableTerminationOnCorruption = 1, HeapOptimizeResources = 3, HeapTag };
 
 const ProcessInfoClass = enum(i32) {
-  ProcessBasicInformation = 0x00,
-  ProcessQuotaLimits = 0x01,
-  ProcessIoCounters = 0x02,
-  ProcessVmCounters = 0x03,
-  ProcessTimes = 0x04,
-  ProcessBasePriority = 0x05,
-  ProcessRaisePriority = 0x06,
-  ProcessDebugPort = 0x07,
-  ProcessExceptionPort = 0x08,
-  ProcessAccessToken = 0x09,
-  ProcessLdtInformation = 0x0A,
-  ProcessLdtSize = 0x0B,
-  ProcessDefaultHardErrorMode = 0x0C,
-  ProcessIoPortHandlers = 0x0D,
-  ProcessPooledUsageAndLimits = 0x0E,
-  ProcessWorkingSetWatch = 0x0F,
-  ProcessUserModeIOPL = 0x10,
-  ProcessEnableAlignmentFaultFixup = 0x11,
-  ProcessPriorityClass = 0x12,
-  ProcessWx86Information = 0x13,
-  ProcessHandleCount = 0x14,
-  ProcessAffinityMask = 0x15,
-  ProcessPriorityBoost = 0x16,
-  ProcessDeviceMap = 0x17,
-  ProcessSessionInformation = 0x18,
-  ProcessForegroundInformation = 0x19,
-  ProcessWow64Information = 0x1A,
-  ProcessImageFileName = 0x1B,
-  ProcessLUIDDeviceMapsEnabled = 0x1C,
-  ProcessBreakOnTermination = 0x1D,
-  ProcessDebugObjectHandle = 0x1E,
-  ProcessDebugFlags = 0x1F,
-  ProcessHandleTracing = 0x20,
-  ProcessIoPriority = 0x21,
-  ProcessExecuteFlags = 0x22,
-  ProcessResourceManagement = 0x23,
-  ProcessCookie = 0x24,
-  ProcessImageInformation = 0x25,
-  ProcessCycleTime = 0x26,
-  ProcessPagePriority = 0x27,
-  ProcessInstrumentationCallback = 0x28,
-  ProcessThreadStackAllocation = 0x29,
-  ProcessWorkingSetWatchEx = 0x2A,
-  ProcessImageFileNameWin32 = 0x2B,
-  ProcessImageFileMapping = 0x2C,
-  ProcessAffinityUpdateMode = 0x2D,
-  ProcessMemoryAllocationMode = 0x2E,
-  ProcessGroupInformation = 0x2F,
-  ProcessTokenVirtualizationEnabled = 0x30,
-  ProcessConsoleHostProcess = 0x31,
-  ProcessWindowInformation = 0x32,
-  ProcessHandleInformation = 0x33,
-  ProcessMitigationPolicy = 0x34,
-  ProcessDynamicFunctionTableInformation = 0x35,
-  ProcessHandleCheckingMode = 0x36,
-  ProcessKeepAliveCount = 0x37,
-  ProcessRevokeFileHandles = 0x38,
-  ProcessWorkingSetControl = 0x39,
-  ProcessHandleTable = 0x3A,
-  ProcessCheckStackExtentsMode = 0x3B,
-  ProcessCommandLineInformation = 0x3C,
-  ProcessProtectionInformation = 0x3D,
-  ProcessMemoryExhaustion = 0x3E,
-  ProcessFaultInformation = 0x3F,
-  ProcessTelemetryIdInformation = 0x40,
-  ProcessCommitReleaseInformation = 0x41,
-  ProcessDefaultCpuSetsInformation = 0x42,
-  ProcessAllowedCpuSetsInformation = 0x43,
-  ProcessSubsystemProcess = 0x44,
-  ProcessJobMemoryInformation = 0x45,
-  ProcessInPrivate = 0x46,
-  ProcessRaiseUMExceptionOnInvalidHandleClose = 0x47,
-  ProcessIumChallengeResponse = 0x48,
-  ProcessChildProcessInformation = 0x49,
-  ProcessHighGraphicsPriorityInformation = 0x4A,
-  ProcessSubsystemInformation = 0x4B,
-  ProcessEnergyValues = 0x4C,
-  ProcessActivityThrottleState = 0x4D,
-  ProcessActivityThrottlePolicy = 0x4E,
-  ProcessWin32kSyscallFilterInformation = 0x4F,
-  ProcessDisableSystemAllowedCpuSets = 0x50,
-  ProcessWakeInformation = 0x51,
-  ProcessEnergyTrackingState = 0x52,
-  ProcessManageWritesToExecutableMemory = 0x53,
-  ProcessCaptureTrustletLiveDump = 0x54,
-  ProcessTelemetryCoverage = 0x55,
-  ProcessEnclaveInformation = 0x56,
-  ProcessEnableReadWriteVmLogging = 0x57,
-  ProcessUptimeInformation = 0x58,
-  ProcessImageSection = 0x59,
-  ProcessDebugAuthInformation = 0x5A,
-  ProcessSystemResourceManagement = 0x5B,
-  ProcessSequenceNumber = 0x5C,
-  ProcessLoaderDetour = 0x5D,
-  ProcessSecurityDomainInformation = 0x5E,
-  ProcessCombineSecurityDomainsInformation = 0x5F,
-  ProcessEnableLogging = 0x60,
-  ProcessLeapSecondInformation = 0x61,
-  ProcessFiberShadowStackAllocation = 0x62,
-  ProcessFreeFiberShadowStackAllocation = 0x63,
-  MaxProcessInfoClass = 0x64
+    ProcessBasicInformation = 0x00,
+    ProcessQuotaLimits = 0x01,
+    ProcessIoCounters = 0x02,
+    ProcessVmCounters = 0x03,
+    ProcessTimes = 0x04,
+    ProcessBasePriority = 0x05,
+    ProcessRaisePriority = 0x06,
+    ProcessDebugPort = 0x07,
+    ProcessExceptionPort = 0x08,
+    ProcessAccessToken = 0x09,
+    ProcessLdtInformation = 0x0A,
+    ProcessLdtSize = 0x0B,
+    ProcessDefaultHardErrorMode = 0x0C,
+    ProcessIoPortHandlers = 0x0D,
+    ProcessPooledUsageAndLimits = 0x0E,
+    ProcessWorkingSetWatch = 0x0F,
+    ProcessUserModeIOPL = 0x10,
+    ProcessEnableAlignmentFaultFixup = 0x11,
+    ProcessPriorityClass = 0x12,
+    ProcessWx86Information = 0x13,
+    ProcessHandleCount = 0x14,
+    ProcessAffinityMask = 0x15,
+    ProcessPriorityBoost = 0x16,
+    ProcessDeviceMap = 0x17,
+    ProcessSessionInformation = 0x18,
+    ProcessForegroundInformation = 0x19,
+    ProcessWow64Information = 0x1A,
+    ProcessImageFileName = 0x1B,
+    ProcessLUIDDeviceMapsEnabled = 0x1C,
+    ProcessBreakOnTermination = 0x1D,
+    ProcessDebugObjectHandle = 0x1E,
+    ProcessDebugFlags = 0x1F,
+    ProcessHandleTracing = 0x20,
+    ProcessIoPriority = 0x21,
+    ProcessExecuteFlags = 0x22,
+    ProcessResourceManagement = 0x23,
+    ProcessCookie = 0x24,
+    ProcessImageInformation = 0x25,
+    ProcessCycleTime = 0x26,
+    ProcessPagePriority = 0x27,
+    ProcessInstrumentationCallback = 0x28,
+    ProcessThreadStackAllocation = 0x29,
+    ProcessWorkingSetWatchEx = 0x2A,
+    ProcessImageFileNameWin32 = 0x2B,
+    ProcessImageFileMapping = 0x2C,
+    ProcessAffinityUpdateMode = 0x2D,
+    ProcessMemoryAllocationMode = 0x2E,
+    ProcessGroupInformation = 0x2F,
+    ProcessTokenVirtualizationEnabled = 0x30,
+    ProcessConsoleHostProcess = 0x31,
+    ProcessWindowInformation = 0x32,
+    ProcessHandleInformation = 0x33,
+    ProcessMitigationPolicy = 0x34,
+    ProcessDynamicFunctionTableInformation = 0x35,
+    ProcessHandleCheckingMode = 0x36,
+    ProcessKeepAliveCount = 0x37,
+    ProcessRevokeFileHandles = 0x38,
+    ProcessWorkingSetControl = 0x39,
+    ProcessHandleTable = 0x3A,
+    ProcessCheckStackExtentsMode = 0x3B,
+    ProcessCommandLineInformation = 0x3C,
+    ProcessProtectionInformation = 0x3D,
+    ProcessMemoryExhaustion = 0x3E,
+    ProcessFaultInformation = 0x3F,
+    ProcessTelemetryIdInformation = 0x40,
+    ProcessCommitReleaseInformation = 0x41,
+    ProcessDefaultCpuSetsInformation = 0x42,
+    ProcessAllowedCpuSetsInformation = 0x43,
+    ProcessSubsystemProcess = 0x44,
+    ProcessJobMemoryInformation = 0x45,
+    ProcessInPrivate = 0x46,
+    ProcessRaiseUMExceptionOnInvalidHandleClose = 0x47,
+    ProcessIumChallengeResponse = 0x48,
+    ProcessChildProcessInformation = 0x49,
+    ProcessHighGraphicsPriorityInformation = 0x4A,
+    ProcessSubsystemInformation = 0x4B,
+    ProcessEnergyValues = 0x4C,
+    ProcessActivityThrottleState = 0x4D,
+    ProcessActivityThrottlePolicy = 0x4E,
+    ProcessWin32kSyscallFilterInformation = 0x4F,
+    ProcessDisableSystemAllowedCpuSets = 0x50,
+    ProcessWakeInformation = 0x51,
+    ProcessEnergyTrackingState = 0x52,
+    ProcessManageWritesToExecutableMemory = 0x53,
+    ProcessCaptureTrustletLiveDump = 0x54,
+    ProcessTelemetryCoverage = 0x55,
+    ProcessEnclaveInformation = 0x56,
+    ProcessEnableReadWriteVmLogging = 0x57,
+    ProcessUptimeInformation = 0x58,
+    ProcessImageSection = 0x59,
+    ProcessDebugAuthInformation = 0x5A,
+    ProcessSystemResourceManagement = 0x5B,
+    ProcessSequenceNumber = 0x5C,
+    ProcessLoaderDetour = 0x5D,
+    ProcessSecurityDomainInformation = 0x5E,
+    ProcessCombineSecurityDomainsInformation = 0x5F,
+    ProcessEnableLogging = 0x60,
+    ProcessLeapSecondInformation = 0x61,
+    ProcessFiberShadowStackAllocation = 0x62,
+    ProcessFreeFiberShadowStackAllocation = 0x63,
+    MaxProcessInfoClass = 0x64,
 };
 
 pub const builtin_symbols = blk: {
     @setEvalBranchQuota(200000);
 
     break :blk std.ComptimeStringMap(*const anyopaque, .{
-        .{"RtlComputeCrc32", stub("RtlComputeCrc32") },
-        .{"RtlUpcaseUnicodeChar", stub("RtlUpcaseUnicodeChar") },
-        .{"NtOpenKey", stub("NtOpenKey") },
-        .{"RtlGetVersion", stub("RtlGetVersion") },
-        .{"NtClose", NtClose },
-        .{"TpAllocTimer", stub("TpAllocTimer") },
-        .{"TpSetTimer", stub("TpSetTimer") },
-        .{"NtQuerySystemInformation", NtQuerySystemInformation },
-        .{"RtlAllocateHeap", RtlAllocateHeap },
-        .{"RtlFreeHeap", RtlFreeHeap },
-        .{"NtSetValueKey", stub("NtSetValueKey") },
-        .{"RtlFreeUnicodeString", stub("RtlFreeUnicodeString") },
-        .{"NtDeviceIoControlFile", stub("NtDeviceIoControlFile") },
-        .{"NtQueryValueKey", stub("NtQueryValueKey") },
-        .{"RtlInitUnicodeString", RtlInitUnicodeString },
-        .{"RtlPrefixUnicodeString", stub("RtlPrefixUnicodeString") },
-        .{"NtOpenFile", stub("NtOpenFile") },
-        .{"NtQueryVolumeInformationFile", stub("NtQueryVolumeInformationFile") },
-        .{"NtQueryInformationProcess", stub("NtQueryInformationProcess") },
-        .{"RtlInitUnicodeStringEx", RtlInitUnicodeStringEx },
-        .{"NtCreatePagingFile", stub("NtCreatePagingFile") },
-        .{"NtSetSystemInformation", stub("NtSetSystemInformation") },
-        .{"RtlAppendUnicodeToString", RtlAppendUnicodeToString },
-        .{"RtlSecondsSince1970ToTime", stub("RtlSecondsSince1970ToTime") },
-        .{"qsort", stub("qsort") },
-        .{"NtSetInformationFile", stub("NtSetInformationFile") },
-        .{"NtQueryInformationFile", stub("NtQueryInformationFile") },
-        .{"NtFsControlFile", stub("NtFsControlFile") },
-        .{"RtlCompareUnicodeString", stub("RtlCompareUnicodeString") },
-        .{"RtlAppendUnicodeStringToString", RtlAppendUnicodeStringToString },
-        .{"RtlCompareMemory", stub("RtlCompareMemory") },
-        .{"NtDeleteValueKey", stub("NtDeleteValueKey") },
-        .{"NtFlushKey", stub("NtFlushKey") },
-        .{"NtUpdateWnfStateData", stub("NtUpdateWnfStateData") },
-        .{"NtSerializeBoot", stub("NtSerializeBoot") },
-        .{"RtlUnicodeStringToInteger", stub("RtlUnicodeStringToInteger") },
-        .{"RtlAllocateAndInitializeSid", RtlAllocateAndInitializeSid },
-        .{"RtlCreateSecurityDescriptor", RtlCreateSecurityDescriptor },
-        .{"RtlCreateAcl", RtlCreateAcl },
-        .{"RtlAddAccessAllowedAce", RtlAddAccessAllowedAce },
-        .{"RtlSetDaclSecurityDescriptor", RtlSetDaclSecurityDescriptor },
-        .{"RtlSetOwnerSecurityDescriptor", stub("RtlSetOwnerSecurityDescriptor") },
-        .{"NtSetSecurityObject", stub("NtSetSecurityObject") },
-        .{"RtlExpandEnvironmentStrings_U", stub("RtlExpandEnvironmentStrings_U") },
-        .{"RtlDosPathNameToNtPathName_U", stub("RtlDosPathNameToNtPathName_U") },
-        .{"NtCreateFile", stub("NtCreateFile") },
-        .{"NtReadFile", stub("NtReadFile") },
-        .{"NtCreateKey", stub("NtCreateKey") },
-        .{"NtAllocateVirtualMemory", stub("NtAllocateVirtualMemory") },
-        .{"NtWriteFile", stub("NtWriteFile") },
-        .{"NtFreeVirtualMemory", stub("NtFreeVirtualMemory") },
-        .{"RtlCreateUnicodeString", stub("RtlCreateUnicodeString") },
-        .{"EtwEventWrite", stub("EtwEventWrite") },
-        .{"EtwEventEnabled", stub("EtwEventEnabled") },
-        .{"_vsnwprintf", stub("_vsnwprintf") },
-        .{"RtlCopyUnicodeString", stub("RtlCopyUnicodeString") },
-        .{"RtlAddMandatoryAce", RtlAddMandatoryAce },
-        .{"RtlSetSaclSecurityDescriptor", RtlSetSaclSecurityDescriptor },
-        .{"RtlAdjustPrivilege", RtlAdjustPrivilege },
-        .{"RtlFreeSid", RtlFreeSid },
-        .{"RtlLengthSid", RtlLengthSid },
-        .{"NtCreateMutant", NtCreateMutant },
-        .{"RtlCreateTagHeap", RtlCreateTagHeap },
-        .{"NtSetInformationProcess", NtSetInformationProcess },
-        .{"NtAlpcCreatePort", NtAlpcCreatePort },
-        .{"RtlInitializeBitMap", stub("RtlInitializeBitMap") },
-        .{"RtlClearAllBits", stub("RtlClearAllBits") },
-        .{"RtlSetBits", stub("RtlSetBits") },
-        .{"NtOpenEvent", stub("NtOpenEvent") },
-        .{"RtlCreateEnvironment", RtlCreateEnvironment },
-        .{"RtlSetCurrentEnvironment", stub("RtlSetCurrentEnvironment") },
-        .{"RtlQueryRegistryValuesEx", stub("RtlQueryRegistryValuesEx") },
-        .{"NtCreateDirectoryObject", stub("NtCreateDirectoryObject") },
-        .{"RtlEqualUnicodeString", stub("RtlEqualUnicodeString") },
-        .{"NtSetEvent", stub("NtSetEvent") },
-        .{"NtInitializeRegistry", stub("NtInitializeRegistry") },
-        .{"NtResumeThread", stub("NtResumeThread") },
-        .{"NtWaitForSingleObject", stub("NtWaitForSingleObject") },
-        .{"NtTerminateProcess", NtTerminateProcess },
-        .{"TpAllocWork", stub("TpAllocWork") },
-        .{"TpPostWork", stub("TpPostWork") },
-        .{"TpWaitForWork", stub("TpWaitForWork") },
-        .{"TpReleaseWork", stub("TpReleaseWork") },
-        .{"_wcsupr_s", stub("_wcsupr_s") },
-        .{"NtOpenDirectoryObject", stub("NtOpenDirectoryObject") },
-        .{"NtCreateSymbolicLinkObject", stub("NtCreateSymbolicLinkObject") },
-        .{"NtMakeTemporaryObject", stub("NtMakeTemporaryObject") },
-        .{"_stricmp", stub("_stricmp") },
-        .{"RtlInitAnsiString", stub("RtlInitAnsiString") },
-        .{"RtlAnsiStringToUnicodeString", stub("RtlAnsiStringToUnicodeString") },
-        .{"NtOpenSymbolicLinkObject", stub("NtOpenSymbolicLinkObject") },
-        .{"NtQuerySymbolicLinkObject", stub("NtQuerySymbolicLinkObject") },
-        .{"RtlDosPathNameToNtPathName_U_WithStatus", stub("RtlDosPathNameToNtPathName_U_WithStatus") },
-        .{"RtlRandomEx", stub("RtlRandomEx") },
-        .{"qsort_s", stub("qsort_s") },
-        .{"LdrVerifyImageMatchesChecksumEx", stub("LdrVerifyImageMatchesChecksumEx") },
-        .{"RtlAppxIsFileOwnedByTrustedInstaller", stub("RtlAppxIsFileOwnedByTrustedInstaller") },
-        .{"NtQueryAttributesFile", stub("NtQueryAttributesFile") },
-        .{"NtQueryDirectoryFile", stub("NtQueryDirectoryFile") },
-        .{"RtlDeleteRegistryValue", stub("RtlDeleteRegistryValue") },
-        .{"RtlWriteRegistryValue", stub("RtlWriteRegistryValue") },
-        .{"_wcsicmp", stub("_wcsicmp") },
-        .{"RtlSetEnvironmentVariable", stub("RtlSetEnvironmentVariable") },
-        .{"NtCreateSection", stub("NtCreateSection") },
-        .{"NtMapViewOfSection", stub("NtMapViewOfSection") },
-        .{"NtUnmapViewOfSection", stub("NtUnmapViewOfSection") },
-        .{"NtDuplicateObject", stub("NtDuplicateObject") },
-        .{"NtQueryInformationJobObject", NtQueryInformationJobObject },
-        .{"iswctype", stub("iswctype") },
-        .{"RtlQueryEnvironmentVariable_U", stub("RtlQueryEnvironmentVariable_U") },
-        .{"RtlDosSearchPath_U", stub("RtlDosSearchPath_U") },
-        .{"RtlTestBit", stub("RtlTestBit") },
-        .{"RtlInterlockedSetBitRun", stub("RtlInterlockedSetBitRun") },
-        .{"RtlFindSetBits", stub("RtlFindSetBits") },
-        .{"RtlCreateProcessParametersEx", stub("RtlCreateProcessParametersEx") },
-        .{"RtlCreateUserProcess", stub("RtlCreateUserProcess") },
-        .{"RtlDestroyProcessParameters", stub("RtlDestroyProcessParameters") },
-        .{"NtDisplayString", stub("NtDisplayString") },
-        .{"RtlAddProcessTrustLabelAce", RtlAddProcessTrustLabelAce },
-        .{"RtlGetAce", RtlGetAce },
-        .{"NtQueryDirectoryObject", stub("NtQueryDirectoryObject") },
-        .{"RtlTimeToTimeFields", stub("RtlTimeToTimeFields") },
-        .{"NtDeleteFile", stub("NtDeleteFile") },
-        .{"RtlAcquireSRWLockExclusive", stub("RtlAcquireSRWLockExclusive") },
-        .{"NtAlpcDisconnectPort", stub("NtAlpcDisconnectPort") },
-        .{"RtlReleaseSRWLockExclusive", stub("RtlReleaseSRWLockExclusive") },
-        .{"RtlAcquireSRWLockShared", stub("RtlAcquireSRWLockShared") },
-        .{"RtlReleaseSRWLockShared", stub("RtlReleaseSRWLockShared") },
-        .{"NtAlpcImpersonateClientOfPort", stub("NtAlpcImpersonateClientOfPort") },
-        .{"NtOpenThreadToken", stub("NtOpenThreadToken") },
-        .{"NtQueryInformationToken", stub("NtQueryInformationToken") },
-        .{"NtSetInformationThread", stub("NtSetInformationThread") },
-        .{"TpSetPoolMinThreads", TpSetPoolMinThreads },
-        .{"RtlSetThreadIsCritical", RtlSetThreadIsCritical },
-        .{"AlpcInitializeMessageAttribute", stub("AlpcInitializeMessageAttribute") },
-        .{"NtAlpcSendWaitReceivePort", stub("NtAlpcSendWaitReceivePort") },
-        .{"AlpcGetMessageAttribute", stub("AlpcGetMessageAttribute") },
-        .{"NtAlpcCancelMessage", stub("NtAlpcCancelMessage") },
-        .{"NtAlpcOpenSenderProcess", stub("NtAlpcOpenSenderProcess") },
-        .{"RtlInitializeSRWLock", RtlInitializeSRWLock },
-        .{"NtAlpcAcceptConnectPort", stub("NtAlpcAcceptConnectPort") },
-        .{"NtConnectPort", stub("NtConnectPort") },
-        .{"NtRequestWaitReplyPort", stub("NtRequestWaitReplyPort") },
-        .{"NtCreateEvent", stub("NtCreateEvent") },
-        .{"RtlDeleteNoSplay", stub("RtlDeleteNoSplay") },
-        .{"RtlSleepConditionVariableSRW", stub("RtlSleepConditionVariableSRW") },
-        .{"RtlWakeAllConditionVariable", stub("RtlWakeAllConditionVariable") },
-        .{"NtAssignProcessToJobObject", stub("NtAssignProcessToJobObject") },
-        .{"EtwGetTraceLoggerHandle", stub("EtwGetTraceLoggerHandle") },
-        .{"EtwGetTraceEnableLevel", stub("EtwGetTraceEnableLevel") },
-        .{"EtwGetTraceEnableFlags", stub("EtwGetTraceEnableFlags") },
-        .{"EtwRegisterTraceGuidsW", EtwRegisterTraceGuidsW },
-        .{"NtDelayExecution", stub("NtDelayExecution") },
-        .{"RtlSetHeapInformation", RtlSetHeapInformation },
-        .{"EtwEventRegister", EtwEventRegister },
-        .{"TpAllocPool", TpAllocPool },
-        .{"TpAllocAlpcCompletion", stub("TpAllocAlpcCompletion") },
-        .{"NtWaitForMultipleObjects", stub("NtWaitForMultipleObjects") },
-        .{"NtRaiseHardError", NtRaiseHardError },
-        .{"RtlInitializeConditionVariable", RtlInitializeConditionVariable },
-        .{"NtClearEvent", stub("NtClearEvent") },
-        .{"RtlUnicodeStringToAnsiString", stub("RtlUnicodeStringToAnsiString") },
-        .{"NtQueryEvent", stub("NtQueryEvent") },
-        .{"wcstoul", stub("wcstoul") },
-        .{"LdrQueryImageFileExecutionOptions", stub("LdrQueryImageFileExecutionOptions") },
-        .{"RtlAcquirePrivilege", stub("RtlAcquirePrivilege") },
-        .{"RtlReleasePrivilege", stub("RtlReleasePrivilege") },
-        .{"RtlCaptureContext", stub("RtlCaptureContext") },
-        .{"RtlLookupFunctionEntry", stub("RtlLookupFunctionEntry") },
-        .{"RtlVirtualUnwind", stub("RtlVirtualUnwind") },
-        .{"RtlUnhandledExceptionFilter", stub("RtlUnhandledExceptionFilter") },
-        .{"RtlCompareUnicodeStrings", stub("RtlCompareUnicodeStrings") },
-        .{"RtlNormalizeProcessParams", RtlNormalizeProcessParams },
-        .{"iswspace", iswspace },
-        .{"RtlConnectToSm", stub("RtlConnectToSm") },
-        .{"RtlSendMsgToSm", stub("RtlSendMsgToSm") },
-        .{"NtQueryKey", stub("NtQueryKey") },
-        .{"NtDeleteKey", stub("NtDeleteKey") },
-        .{"__chkstk", stub("__chkstk") },
-        .{"memcpy", memcpy },
-        .{"memset", memset },
-        .{"__C_specific_handler", stub("__C_specific_handler") },
+        .{ "RtlComputeCrc32", stub("RtlComputeCrc32") },
+        .{ "RtlUpcaseUnicodeChar", stub("RtlUpcaseUnicodeChar") },
+        .{ "NtOpenKey", NtOpenKey },
+        .{ "RtlGetVersion", stub("RtlGetVersion") },
+        .{ "NtClose", NtClose },
+        .{ "TpAllocTimer", stub("TpAllocTimer") },
+        .{ "TpSetTimer", stub("TpSetTimer") },
+        .{ "NtQuerySystemInformation", NtQuerySystemInformation },
+        .{ "RtlAllocateHeap", RtlAllocateHeap },
+        .{ "RtlFreeHeap", RtlFreeHeap },
+        .{ "NtSetValueKey", stub("NtSetValueKey") },
+        .{ "RtlFreeUnicodeString", stub("RtlFreeUnicodeString") },
+        .{ "NtDeviceIoControlFile", stub("NtDeviceIoControlFile") },
+        .{ "NtQueryValueKey", stub("NtQueryValueKey") },
+        .{ "RtlInitUnicodeString", RtlInitUnicodeString },
+        .{ "RtlPrefixUnicodeString", stub("RtlPrefixUnicodeString") },
+        .{ "NtOpenFile", stub("NtOpenFile") },
+        .{ "NtQueryVolumeInformationFile", stub("NtQueryVolumeInformationFile") },
+        .{ "NtQueryInformationProcess", stub("NtQueryInformationProcess") },
+        .{ "RtlInitUnicodeStringEx", RtlInitUnicodeStringEx },
+        .{ "NtCreatePagingFile", stub("NtCreatePagingFile") },
+        .{ "NtSetSystemInformation", stub("NtSetSystemInformation") },
+        .{ "RtlAppendUnicodeToString", RtlAppendUnicodeToString },
+        .{ "RtlSecondsSince1970ToTime", stub("RtlSecondsSince1970ToTime") },
+        .{ "qsort", stub("qsort") },
+        .{ "NtSetInformationFile", stub("NtSetInformationFile") },
+        .{ "NtQueryInformationFile", stub("NtQueryInformationFile") },
+        .{ "NtFsControlFile", stub("NtFsControlFile") },
+        .{ "RtlCompareUnicodeString", stub("RtlCompareUnicodeString") },
+        .{ "RtlAppendUnicodeStringToString", RtlAppendUnicodeStringToString },
+        .{ "RtlCompareMemory", stub("RtlCompareMemory") },
+        .{ "NtDeleteValueKey", stub("NtDeleteValueKey") },
+        .{ "NtFlushKey", stub("NtFlushKey") },
+        .{ "NtUpdateWnfStateData", stub("NtUpdateWnfStateData") },
+        .{ "NtSerializeBoot", stub("NtSerializeBoot") },
+        .{ "RtlUnicodeStringToInteger", stub("RtlUnicodeStringToInteger") },
+        .{ "RtlAllocateAndInitializeSid", RtlAllocateAndInitializeSid },
+        .{ "RtlCreateSecurityDescriptor", RtlCreateSecurityDescriptor },
+        .{ "RtlCreateAcl", RtlCreateAcl },
+        .{ "RtlAddAccessAllowedAce", RtlAddAccessAllowedAce },
+        .{ "RtlSetDaclSecurityDescriptor", RtlSetDaclSecurityDescriptor },
+        .{ "RtlSetOwnerSecurityDescriptor", stub("RtlSetOwnerSecurityDescriptor") },
+        .{ "NtSetSecurityObject", stub("NtSetSecurityObject") },
+        .{ "RtlExpandEnvironmentStrings_U", stub("RtlExpandEnvironmentStrings_U") },
+        .{ "RtlDosPathNameToNtPathName_U", stub("RtlDosPathNameToNtPathName_U") },
+        .{ "NtCreateFile", stub("NtCreateFile") },
+        .{ "NtReadFile", stub("NtReadFile") },
+        .{ "NtCreateKey", stub("NtCreateKey") },
+        .{ "NtAllocateVirtualMemory", stub("NtAllocateVirtualMemory") },
+        .{ "NtWriteFile", stub("NtWriteFile") },
+        .{ "NtFreeVirtualMemory", stub("NtFreeVirtualMemory") },
+        .{ "RtlCreateUnicodeString", stub("RtlCreateUnicodeString") },
+        .{ "EtwEventWrite", stub("EtwEventWrite") },
+        .{ "EtwEventEnabled", stub("EtwEventEnabled") },
+        .{ "_vsnwprintf", stub("_vsnwprintf") },
+        .{ "RtlCopyUnicodeString", stub("RtlCopyUnicodeString") },
+        .{ "RtlAddMandatoryAce", RtlAddMandatoryAce },
+        .{ "RtlSetSaclSecurityDescriptor", RtlSetSaclSecurityDescriptor },
+        .{ "RtlAdjustPrivilege", RtlAdjustPrivilege },
+        .{ "RtlFreeSid", RtlFreeSid },
+        .{ "RtlLengthSid", RtlLengthSid },
+        .{ "NtCreateMutant", NtCreateMutant },
+        .{ "RtlCreateTagHeap", RtlCreateTagHeap },
+        .{ "NtSetInformationProcess", NtSetInformationProcess },
+        .{ "NtAlpcCreatePort", NtAlpcCreatePort },
+        .{ "RtlInitializeBitMap", stub("RtlInitializeBitMap") },
+        .{ "RtlClearAllBits", stub("RtlClearAllBits") },
+        .{ "RtlSetBits", stub("RtlSetBits") },
+        .{ "NtOpenEvent", stub("NtOpenEvent") },
+        .{ "RtlCreateEnvironment", RtlCreateEnvironment },
+        .{ "RtlSetCurrentEnvironment", stub("RtlSetCurrentEnvironment") },
+        .{ "RtlQueryRegistryValuesEx", stub("RtlQueryRegistryValuesEx") },
+        .{ "NtCreateDirectoryObject", stub("NtCreateDirectoryObject") },
+        .{ "RtlEqualUnicodeString", stub("RtlEqualUnicodeString") },
+        .{ "NtSetEvent", stub("NtSetEvent") },
+        .{ "NtInitializeRegistry", stub("NtInitializeRegistry") },
+        .{ "NtResumeThread", stub("NtResumeThread") },
+        .{ "NtWaitForSingleObject", stub("NtWaitForSingleObject") },
+        .{ "NtTerminateProcess", NtTerminateProcess },
+        .{ "TpAllocWork", stub("TpAllocWork") },
+        .{ "TpPostWork", stub("TpPostWork") },
+        .{ "TpWaitForWork", stub("TpWaitForWork") },
+        .{ "TpReleaseWork", stub("TpReleaseWork") },
+        .{ "_wcsupr_s", stub("_wcsupr_s") },
+        .{ "NtOpenDirectoryObject", NtOpenDirectoryObject },
+        .{ "NtCreateSymbolicLinkObject", stub("NtCreateSymbolicLinkObject") },
+        .{ "NtMakeTemporaryObject", stub("NtMakeTemporaryObject") },
+        .{ "_stricmp", stub("_stricmp") },
+        .{ "RtlInitAnsiString", stub("RtlInitAnsiString") },
+        .{ "RtlAnsiStringToUnicodeString", stub("RtlAnsiStringToUnicodeString") },
+        .{ "NtOpenSymbolicLinkObject", stub("NtOpenSymbolicLinkObject") },
+        .{ "NtQuerySymbolicLinkObject", stub("NtQuerySymbolicLinkObject") },
+        .{ "RtlDosPathNameToNtPathName_U_WithStatus", stub("RtlDosPathNameToNtPathName_U_WithStatus") },
+        .{ "RtlRandomEx", stub("RtlRandomEx") },
+        .{ "qsort_s", stub("qsort_s") },
+        .{ "LdrVerifyImageMatchesChecksumEx", stub("LdrVerifyImageMatchesChecksumEx") },
+        .{ "RtlAppxIsFileOwnedByTrustedInstaller", stub("RtlAppxIsFileOwnedByTrustedInstaller") },
+        .{ "NtQueryAttributesFile", stub("NtQueryAttributesFile") },
+        .{ "NtQueryDirectoryFile", stub("NtQueryDirectoryFile") },
+        .{ "RtlDeleteRegistryValue", stub("RtlDeleteRegistryValue") },
+        .{ "RtlWriteRegistryValue", stub("RtlWriteRegistryValue") },
+        .{ "_wcsicmp", stub("_wcsicmp") },
+        .{ "RtlSetEnvironmentVariable", stub("RtlSetEnvironmentVariable") },
+        .{ "NtCreateSection", stub("NtCreateSection") },
+        .{ "NtMapViewOfSection", stub("NtMapViewOfSection") },
+        .{ "NtUnmapViewOfSection", stub("NtUnmapViewOfSection") },
+        .{ "NtDuplicateObject", stub("NtDuplicateObject") },
+        .{ "NtQueryInformationJobObject", NtQueryInformationJobObject },
+        .{ "iswctype", stub("iswctype") },
+        .{ "RtlQueryEnvironmentVariable_U", stub("RtlQueryEnvironmentVariable_U") },
+        .{ "RtlDosSearchPath_U", stub("RtlDosSearchPath_U") },
+        .{ "RtlTestBit", stub("RtlTestBit") },
+        .{ "RtlInterlockedSetBitRun", stub("RtlInterlockedSetBitRun") },
+        .{ "RtlFindSetBits", stub("RtlFindSetBits") },
+        .{ "RtlCreateProcessParametersEx", stub("RtlCreateProcessParametersEx") },
+        .{ "RtlCreateUserProcess", stub("RtlCreateUserProcess") },
+        .{ "RtlDestroyProcessParameters", stub("RtlDestroyProcessParameters") },
+        .{ "NtDisplayString", stub("NtDisplayString") },
+        .{ "RtlAddProcessTrustLabelAce", RtlAddProcessTrustLabelAce },
+        .{ "RtlGetAce", RtlGetAce },
+        .{ "NtQueryDirectoryObject", stub("NtQueryDirectoryObject") },
+        .{ "RtlTimeToTimeFields", stub("RtlTimeToTimeFields") },
+        .{ "NtDeleteFile", stub("NtDeleteFile") },
+        .{ "RtlAcquireSRWLockExclusive", stub("RtlAcquireSRWLockExclusive") },
+        .{ "NtAlpcDisconnectPort", stub("NtAlpcDisconnectPort") },
+        .{ "RtlReleaseSRWLockExclusive", stub("RtlReleaseSRWLockExclusive") },
+        .{ "RtlAcquireSRWLockShared", stub("RtlAcquireSRWLockShared") },
+        .{ "RtlReleaseSRWLockShared", stub("RtlReleaseSRWLockShared") },
+        .{ "NtAlpcImpersonateClientOfPort", stub("NtAlpcImpersonateClientOfPort") },
+        .{ "NtOpenThreadToken", stub("NtOpenThreadToken") },
+        .{ "NtQueryInformationToken", stub("NtQueryInformationToken") },
+        .{ "NtSetInformationThread", stub("NtSetInformationThread") },
+        .{ "TpSetPoolMinThreads", TpSetPoolMinThreads },
+        .{ "RtlSetThreadIsCritical", RtlSetThreadIsCritical },
+        .{ "AlpcInitializeMessageAttribute", stub("AlpcInitializeMessageAttribute") },
+        .{ "NtAlpcSendWaitReceivePort", stub("NtAlpcSendWaitReceivePort") },
+        .{ "AlpcGetMessageAttribute", stub("AlpcGetMessageAttribute") },
+        .{ "NtAlpcCancelMessage", stub("NtAlpcCancelMessage") },
+        .{ "NtAlpcOpenSenderProcess", stub("NtAlpcOpenSenderProcess") },
+        .{ "RtlInitializeSRWLock", RtlInitializeSRWLock },
+        .{ "NtAlpcAcceptConnectPort", stub("NtAlpcAcceptConnectPort") },
+        .{ "NtConnectPort", stub("NtConnectPort") },
+        .{ "NtRequestWaitReplyPort", stub("NtRequestWaitReplyPort") },
+        .{ "NtCreateEvent", stub("NtCreateEvent") },
+        .{ "RtlDeleteNoSplay", stub("RtlDeleteNoSplay") },
+        .{ "RtlSleepConditionVariableSRW", stub("RtlSleepConditionVariableSRW") },
+        .{ "RtlWakeAllConditionVariable", stub("RtlWakeAllConditionVariable") },
+        .{ "NtAssignProcessToJobObject", stub("NtAssignProcessToJobObject") },
+        .{ "EtwGetTraceLoggerHandle", stub("EtwGetTraceLoggerHandle") },
+        .{ "EtwGetTraceEnableLevel", stub("EtwGetTraceEnableLevel") },
+        .{ "EtwGetTraceEnableFlags", stub("EtwGetTraceEnableFlags") },
+        .{ "EtwRegisterTraceGuidsW", EtwRegisterTraceGuidsW },
+        .{ "NtDelayExecution", stub("NtDelayExecution") },
+        .{ "RtlSetHeapInformation", RtlSetHeapInformation },
+        .{ "EtwEventRegister", EtwEventRegister },
+        .{ "TpAllocPool", TpAllocPool },
+        .{ "TpAllocAlpcCompletion", stub("TpAllocAlpcCompletion") },
+        .{ "NtWaitForMultipleObjects", stub("NtWaitForMultipleObjects") },
+        .{ "NtRaiseHardError", NtRaiseHardError },
+        .{ "RtlInitializeConditionVariable", RtlInitializeConditionVariable },
+        .{ "NtClearEvent", stub("NtClearEvent") },
+        .{ "RtlUnicodeStringToAnsiString", stub("RtlUnicodeStringToAnsiString") },
+        .{ "NtQueryEvent", stub("NtQueryEvent") },
+        .{ "wcstoul", stub("wcstoul") },
+        .{ "LdrQueryImageFileExecutionOptions", stub("LdrQueryImageFileExecutionOptions") },
+        .{ "RtlAcquirePrivilege", stub("RtlAcquirePrivilege") },
+        .{ "RtlReleasePrivilege", stub("RtlReleasePrivilege") },
+        .{ "RtlCaptureContext", stub("RtlCaptureContext") },
+        .{ "RtlLookupFunctionEntry", stub("RtlLookupFunctionEntry") },
+        .{ "RtlVirtualUnwind", stub("RtlVirtualUnwind") },
+        .{ "RtlUnhandledExceptionFilter", stub("RtlUnhandledExceptionFilter") },
+        .{ "RtlCompareUnicodeStrings", stub("RtlCompareUnicodeStrings") },
+        .{ "RtlNormalizeProcessParams", RtlNormalizeProcessParams },
+        .{ "iswspace", iswspace },
+        .{ "RtlConnectToSm", stub("RtlConnectToSm") },
+        .{ "RtlSendMsgToSm", stub("RtlSendMsgToSm") },
+        .{ "NtQueryKey", stub("NtQueryKey") },
+        .{ "NtDeleteKey", stub("NtDeleteKey") },
+        .{ "__chkstk", stub("__chkstk") },
+        .{ "memcpy", memcpy },
+        .{ "memset", memset },
+        .{ "__C_specific_handler", stub("__C_specific_handler") },
     });
 };
