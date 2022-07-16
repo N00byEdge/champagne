@@ -220,6 +220,7 @@ const KSystemTime = extern struct {
 };
 
 const KUserSharedData = extern struct {
+    // zig fmt: off
     tick_count_low: u32 = 0x40404040,        // 0x0000
     tick_count_multiplier: u32 = 0x40404041, // 0x0004
     interrupt_time: KSystemTime = .{},       // 0x0008
@@ -232,18 +233,21 @@ const KUserSharedData = extern struct {
     crypto_exponent: ULONG = 0x10001,        // 0x023C
     time_zone_id: ULONG = 0,                 // 0x0240
     large_page_minimum: ULONG = 0x1000 << 9, // 0x0244
+    // zig fmt: on
 };
 
 pub var pparam: ProcessParameters = undefined;
 pub var peb: PEB = undefined;
 
 const TEB = extern struct {
+    // zig fmt: off
     unk0: [0x30]u8 = undefined, // 0x0000
     self: *TEB,                 // 0x0030
     unk1: [0x8]u8 = undefined,  // 0x0038
     process_id: u32 = 0x5,      // 0x0040
     unk2: [0x1C]u8 = undefined, // 0x0044
     peb: ?*PEB = undefined,     // 0x0060
+    // zig fmt: on
 };
 
 var teb: TEB = .{
