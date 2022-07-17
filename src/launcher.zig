@@ -39,7 +39,7 @@ pub fn main() !void {
     try rt.init(&smss_path, &smss_command_line);
 
     // launch Smss.exe
-    var smss = try std.fs.cwd().openFile("test/smss.exe", .{});
+    var smss = try std.fs.cwd().openFile("test/Windows/system32/smss.exe", .{});
     defer smss.close();
 
     const smss_entry = try PE.load(smss, gpa.allocator(), ResolveContext);

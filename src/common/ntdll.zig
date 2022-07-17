@@ -1,6 +1,7 @@
 const std = @import("std");
 const rt = @import("rt.zig");
 const guids = @import("guids.zig");
+const vfs = @import("vfs.zig");
 
 const log = @import("log.zig").scoped(.ntdll);
 
@@ -650,17 +651,35 @@ fn NtOpenDirectoryObject(
     return .SUCCESS;
 }
 
+fn getMutex(dirent: *vfs.DirectoryEntry) *std.Thread.Mutex {
+    switch(dirent.value) {
+        .mutex => |*m| return m,
+        .newly_created => {
+            dirent.value = .{.mutex = .{}};
+            return &dirent.value.mutex;
+        },
+        else => @panic("getMutex else file type"),
+    }
+}
+
 fn NtCreateMutant(
     opt_handle: ?*rt.HANDLE,
     desired_access: AccessMask,
     opt_object_attributes: ?*ObjectAttributes,
     initial_owner: rt.BOOL,
 ) callconv(.Win64) NTSTATUS {
-    log("STUB: NtCreateMutant({})", .{opt_object_attributes});
-    _ = opt_handle;
+    const attr = opt_object_attributes orelse return .INVALID_PARAMETER;
+    const path = attr.name orelse return .INVALID_PARAMETER;
+    const n = vfs.resolve16(path.chars(), true) catch return .NO_MEMORY;
+    const mutex = getMutex(n);
+    if(initial_owner != 0) {
+        mutex.lock();
+    }
+    if(opt_handle) |out| {
+        out.* = vfs.handle(n);
+    }
+    vfs.close(n);
     _ = desired_access;
-    _ = opt_object_attributes;
-    _ = initial_owner;
     return .SUCCESS;
 }
 
