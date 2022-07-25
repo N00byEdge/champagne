@@ -2,6 +2,7 @@ const std = @import("std");
 const rt = @import("rt.zig");
 const guids = @import("guids.zig");
 const vfs = @import("vfs.zig");
+const tp = @import("tp.zig");
 
 const log = @import("log.zig").scoped(.ntdll);
 
@@ -141,21 +142,28 @@ fn EtwRegisterTraceGuidsW(
 }
 
 fn TpAllocPool(
-    opt_result: ?[*]rt.PVOID,
+    opt_result: ?**tp.ThreadPool,
     reserved: rt.PVOID,
 ) callconv(.Win64) NTSTATUS {
     const result = opt_result orelse return .INVALID_PARAMETER;
-    log("TpAllocPool(0x{X}) -> 0x41414141", .{@ptrToInt(result)});
-    result.* = @intToPtr(rt.PVOID, 0x41414141);
+    result.* = tp.allocPool() catch return .NO_MEMORY;
+    log("TpAllocPool(0x{X}) -> 0x{X}", .{@ptrToInt(result), @ptrToInt(result.*)});
     _ = reserved;
     return .SUCCESS;
 }
 
 fn TpSetPoolMinThreads(
-    tp: rt.PVOID,
+    pool: ?*tp.ThreadPool,
     min_threads: rt.ULONG,
 ) callconv(.Win64) NTSTATUS {
-    log("TpSetPoolMinThreads(0x{X}, {d})", .{ @ptrToInt(tp orelse return .INVALID_PARAMETER), min_threads });
+    const p = pool orelse return .INVALID_PARAMETER;
+    const num_threads = std.math.max(min_threads, 1);
+    log("TpSetPoolMinThreads(0x{X}, {d} (treated as {d}))", .{
+        @ptrToInt(p),
+        min_threads,
+        num_threads,
+    });
+    p.setNumThreads(num_threads) catch return .NO_MEMORY;
     return .SUCCESS;
 }
 
