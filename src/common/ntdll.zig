@@ -634,6 +634,45 @@ fn memcpy(
     return dest;
 }
 
+const BitmapT = rt.ULONG;
+const BitmapData = [*]BitmapT;
+const RTLBitmap = std.DynamicBitSetUnmanaged(BitmapT);
+
+comptime {
+    // This seems to be the size allocated for these
+    // even though it's supposed to be an opaque struct (???)
+    std.debug.assert(@sizeOf(RTLBitmap) <= 0x10);
+}
+
+var bitmap_allocator = std.heap.GeneralPurposeAllocator(.{}){ .backing_allocator = std.heap.page_allocator };
+
+fn RtlInitializeBitMap(
+    bm: *RTLBitmap,
+    data: BitmapData,
+    num_bits: rt.ULONG,
+) callconv(.Win64) void {
+    log("RtlInitializeBitMap(0x{X}, 0x{X}, {d})", .{@ptrToInt(bm), @ptrToInt(data), num_bits});
+    bm.* = .{
+        .masks = data,
+        .bit_length = num_bits,
+    };
+}
+
+fn RtlClearAllBits(
+    bm: *RTLBitmap,
+) callconv(.Win64) void {
+    bm.setRangeValue(.{ .start = 0, .end = bm.bit_length }, false);
+}
+
+fn RtlSetBits(
+    bm: *RTLBitmap,
+    start: rt.ULONG,
+    num: rt.ULONG,
+) callconv(.Win64) void {
+    log("RtlSetBits(0x{X}, {d}, {d})", .{@ptrToInt(bm), start, num});
+    bm.setRangeValue(.{ .start = start, .end = start + num }, true);
+}
+
 fn NtAlpcCreatePort(
     opt_port_handle: ?*rt.HANDLE,
     opt_object_attributes: ?*ObjectAttributes,
@@ -1119,9 +1158,9 @@ pub const builtin_symbols = blk: {
         .{ "RtlCreateTagHeap", RtlCreateTagHeap },
         .{ "NtSetInformationProcess", NtSetInformationProcess },
         .{ "NtAlpcCreatePort", NtAlpcCreatePort },
-        .{ "RtlInitializeBitMap", stub("RtlInitializeBitMap") },
-        .{ "RtlClearAllBits", stub("RtlClearAllBits") },
-        .{ "RtlSetBits", stub("RtlSetBits") },
+        .{ "RtlInitializeBitMap", RtlInitializeBitMap },
+        .{ "RtlClearAllBits", RtlClearAllBits },
+        .{ "RtlSetBits", RtlSetBits },
         .{ "NtOpenEvent", stub("NtOpenEvent") },
         .{ "RtlCreateEnvironment", RtlCreateEnvironment },
         .{ "RtlSetCurrentEnvironment", stub("RtlSetCurrentEnvironment") },
