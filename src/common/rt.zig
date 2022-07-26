@@ -151,8 +151,8 @@ pub const UnicodeString = extern struct {
         self.appendAssumeCapacity(appendage);
     }
 
-    pub fn chars(self: @This()) []const WCHAR {
-        return self.buffer.?[0 .. self.length >> 1];
+    pub fn chars(self: @This()) ?[]const WCHAR {
+        return (self.buffer orelse return null)[0 .. self.length >> 1];
     }
 
     pub fn format(

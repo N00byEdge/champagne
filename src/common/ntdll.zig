@@ -224,7 +224,7 @@ fn RtlAppendUnicodeStringToString(
 ) callconv(.Win64) NTSTATUS {
     log("RtlAppendUnicodeStringToString({} <- {})", .{ dest, src });
     (dest orelse return .INVALID_PARAMETER).append(
-        (src orelse return .INVALID_PARAMETER).chars(),
+        (src orelse return .INVALID_PARAMETER).chars() orelse return .SUCCESS,
         rtl_unicode_string_heap.allocator(),
     ) catch return .NO_MEMORY;
     return .SUCCESS;
@@ -678,7 +678,7 @@ fn NtCreateMutant(
 ) callconv(.Win64) NTSTATUS {
     const attr = opt_object_attributes orelse return .INVALID_PARAMETER;
     const path = attr.name orelse return .INVALID_PARAMETER;
-    const n = vfs.resolve16(path.chars(), true) catch return .NO_MEMORY;
+    const n = vfs.resolve16(path.chars() orelse return .INVALID_PARAMETER, true) catch return .NO_MEMORY;
     const mutex = getMutex(n);
     if(initial_owner != 0) {
         mutex.lock();
