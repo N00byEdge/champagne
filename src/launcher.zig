@@ -4,6 +4,7 @@ const os = std.os;
 const PE = @import("common/PE.zig");
 const ntdll = @import("common/ntdll.zig");
 const rt = @import("common/rt.zig");
+const vfs = @import("common/vfs.zig");
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){
     .backing_allocator = std.heap.page_allocator,
@@ -35,12 +36,29 @@ const ResolveContext = struct {
 var smss_path = rt.toNullTerminatedUTF16Buffer("C:\\Windows\\system32\\smss.exe");
 var smss_command_line = rt.toNullTerminatedUTF16Buffer("C:\\Windows\\system32\\smss.exe");
 
+fn setSymlink(path: []const u8, comptime value: []const u8) !void {
+    const S = struct {
+        const value = rt.toNullTerminatedUTF16Buffer(value);
+    };
+
+    const node = try vfs.resolve8(path, true);
+    defer vfs.close(node);
+    node.get(.symlink).?.* = &S.value;
+}
+
+fn doVfsInit() !void {
+    try setSymlink("\\KnownDlls\\KnownDllPath", "C:\\Windows\\System32");
+    try setSymlink("\\KnownDlls32\\KnownDllPath", "C:\\Windows\\System32");
+}
+
 pub fn main() !void {
     try rt.init(&smss_path, &smss_command_line);
 
     // launch Smss.exe
     var smss = try std.fs.cwd().openFile("test/Windows/system32/smss.exe", .{});
     defer smss.close();
+
+    try doVfsInit();
 
     const smss_entry = try PE.load(smss, gpa.allocator(), ResolveContext);
     std.debug.print("Calling smss.exe entry @ 0x{X}\n", .{smss_entry});

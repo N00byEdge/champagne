@@ -152,6 +152,29 @@ fn TpAllocPool(
     return .SUCCESS;
 }
 
+fn TpAllocWork(
+    out_opt: ?**tp.TPWork,
+    work_opt: ?tp.Work,
+    context: tp.Context,
+    env: tp.Environment,
+) callconv(.Win64) NTSTATUS {
+    log("TpAllocWork(0x{X}, 0x{X})", .{@ptrToInt(out_opt), @ptrToInt(work_opt)});
+    const out = out_opt orelse return .INVALID_PARAMETER;
+    const work = work_opt orelse return .INVALID_PARAMETER;
+    out.* = tp.allocWork(work, context, env) catch return .NO_MEMORY;
+    return .SUCCESS;
+}
+
+fn TpPostWork(
+    work_opt: ?*tp.TPWork,
+) callconv(.Win64) NTSTATUS {
+    const work = work_opt orelse return .INVALID_PARAMETER;
+    const env = work.env;
+    const pool = env.pool.?;
+    pool.addWork(work) catch return .NO_MEMORY;
+    return .SUCCESS;
+}
+
 fn TpSetPoolMinThreads(
     pool: ?*tp.ThreadPool,
     min_threads: rt.ULONG,
@@ -261,16 +284,6 @@ fn RtlSetThreadIsCritical(
     return .SUCCESS;
 }
 
-const RtlSrwLock = extern struct {
-    ptr: rt.PVOID,
-};
-
-fn RtlInitializeSRWLock(
-    lock: ?*RtlSrwLock,
-) callconv(.Win64) void {
-    log("RtlInitializeSRWLock(0x{X})", .{@ptrToInt(lock)});
-}
-
 fn RtlCreateTagHeap(
     heap_handle: rt.HANDLE,
     flags: rt.ULONG,
@@ -371,12 +384,44 @@ fn NtQuerySystemInformation(
     };
 }
 
-const ConditionVariable = rt.PVOID;
+const ConditionVariable = std.Thread.Condition;
+const Mutex = std.Thread.Mutex;
+
+fn RtlInitializeSRWLock(
+    lock: ?*Mutex,
+) callconv(.Win64) void {
+    log("RtlInitializeSRWLock(0x{X})", .{@ptrToInt(lock)});
+    lock.?.* = .{};
+}
+
+fn RtlAcquireSRWLockShared(
+    lock: ?*Mutex,
+) callconv(.Win64) void {
+    log("RtlAcquireSRWLockShared(0x{X})", .{@ptrToInt(lock)});
+    lock.?.lock();
+}
 
 fn RtlInitializeConditionVariable(
     out_cvar: ?*ConditionVariable,
 ) callconv(.Win64) void {
     log("RtlInitializeConditionVariable(0x{X})", .{@ptrToInt(out_cvar)});
+    out_cvar.?.* = .{};
+}
+
+fn RtlSleepConditionVariableSRW(
+    condvar: ?*ConditionVariable,
+    lock: ?*Mutex,
+    timeout: rt.LARGEINT,
+    flags: rt.ULONG,
+) callconv(.Win64) NTSTATUS {
+    log("RtlSleepConditionVariableSRW({d})", .{timeout});
+    _ = flags;
+    if(timeout == 0) {
+        condvar.?.timedWait(lock.?, ~@as(usize, 0)) catch return .INVALID_PARAMETER;
+    } else {
+        condvar.?.timedWait(lock.?, @intCast(usize, timeout)) catch return .INVALID_PARAMETER;
+    }
+    return .SUCCESS;
 }
 
 fn RtlAdjustPrivilege(
@@ -689,33 +734,14 @@ fn NtOpenDirectoryObject(
     desired_access: AccessMask,
     opt_object_attributes: ?*ObjectAttributes,
 ) callconv(.Win64) NTSTATUS {
-    _ = desired_access;
-    const dir_handle = opt_dir_handle orelse return .INVALID_PARAMETER;
-    _ = dir_handle;
     log("NtOpenDirectoryObject({})", .{opt_object_attributes});
+    const n = resovleAttrs(opt_object_attributes, true) orelse return .INVALID_PARAMETER;
+    defer vfs.close(n);
+    if(opt_dir_handle) |handle_out| {
+        handle_out.* = vfs.handle(n);
+    }
+    _ = desired_access;
     return .SUCCESS;
-}
-
-fn getMutex(dirent: *vfs.DirectoryEntry) *std.Thread.Mutex {
-    switch(dirent.value) {
-        .mutex => |*m| return m,
-        .newly_created => {
-            dirent.value = .{.mutex = .{}};
-            return &dirent.value.mutex;
-        },
-        else => @panic("getMutex else file type"),
-    }
-}
-
-fn getDir(dirent: *vfs.DirectoryEntry) *i32 {
-    switch(dirent.value) {
-        .dir => |*d| return d,
-        .newly_created => {
-            dirent.value = .{.dir = -1};
-            return &dirent.value.dir;
-        },
-        else => @panic("getDir else file type"),
-    }
 }
 
 fn NtCreateMutant(
@@ -724,17 +750,15 @@ fn NtCreateMutant(
     opt_object_attributes: ?*ObjectAttributes,
     initial_owner: rt.BOOL,
 ) callconv(.Win64) NTSTATUS {
-    const attr = opt_object_attributes orelse return .INVALID_PARAMETER;
-    const path = attr.name orelse return .INVALID_PARAMETER;
-    const n = vfs.resolve16(path.chars() orelse return .INVALID_PARAMETER, true) catch return .NO_MEMORY;
-    const mutex = getMutex(n);
+    const n = resovleAttrs(opt_object_attributes, true) orelse return .INVALID_PARAMETER;
+    defer vfs.close(n);
+    const mutex = n.get(.mutex) orelse return .INVALID_PARAMETER;
     if(initial_owner != 0) {
         mutex.lock();
     }
     if(opt_handle) |out| {
         out.* = vfs.handle(n);
     }
-    vfs.close(n);
     _ = desired_access;
     return .SUCCESS;
 }
@@ -745,15 +769,37 @@ fn NtOpenKey(
     opt_object_attributes: ?*ObjectAttributes,
 ) callconv(.Win64) NTSTATUS {
     log("STUB: NtOpenKey({})", .{opt_object_attributes});
-    const attr = opt_object_attributes orelse return .INVALID_PARAMETER;
-    const path = attr.name orelse return .INVALID_PARAMETER;
-    const n = vfs.resolve16(path.chars() orelse return .INVALID_PARAMETER, true) catch return .NO_MEMORY;
-    _ = getDir(n);
+    const n = resovleAttrs(opt_object_attributes, true) orelse return .INVALID_PARAMETER;
+    defer vfs.close(n);
+    _ = n.get(.dir);
     if(opt_handle) |out| {
         out.* = vfs.handle(n);
     }
-    vfs.close(n);
     _ = desired_access;
+    return .SUCCESS;
+}
+
+fn NtCreateKey(
+    opt_handle: ?*rt.HANDLE,
+    desired_access: AccessMask,
+    opt_object_attributes: ?*ObjectAttributes,
+    title_index: rt.ULONG,
+    class: ?*rt.UnicodeString,
+    create_options: rt.ULONG,
+    disposition: ?*rt.ULONG,
+) callconv(.Win64) NTSTATUS {
+    log("STUB: NtCreateKey({})", .{opt_object_attributes});
+    const n = resovleAttrs(opt_object_attributes, true) orelse return .INVALID_PARAMETER;
+    defer vfs.close(n);
+    _ = n.get(.dir);
+    if(opt_handle) |out| {
+        out.* = vfs.handle(n);
+    }
+    _ = desired_access;
+    _ = title_index;
+    _ = class;
+    _ = create_options;
+    _ = disposition;
     return .SUCCESS;
 }
 
@@ -763,14 +809,12 @@ fn NtCreateDirectoryObject(
     opt_object_attributes: ?*ObjectAttributes,
 ) callconv(.Win64) NTSTATUS {
     log("STUB: NtCreateDirectoryObject({})", .{opt_object_attributes});
-    const attr = opt_object_attributes orelse return .INVALID_PARAMETER;
-    const path = attr.name orelse return .INVALID_PARAMETER;
-    const n = vfs.resolve16(path.chars() orelse return .INVALID_PARAMETER, true) catch return .NO_MEMORY;
-    _ = getDir(n);
+    const n = resovleAttrs(opt_object_attributes, true) orelse return .INVALID_PARAMETER;
+    defer vfs.close(n);
+    _ = n.get(.dir);
     if(opt_handle) |out| {
         out.* = vfs.handle(n);
     }
-    vfs.close(n);
     _ = desired_access;
     return .SUCCESS;
 }
@@ -945,20 +989,135 @@ fn NtSetValueKey(
     index: rt.ULONG,
     kind: RegistryValueKind,
     data: rt.PVOID,
-    data_size: rt.PVOID,
+    data_size: rt.ULONG,
 ) callconv(.Win64) NTSTATUS {
     log("STUB: NtSetValueKey(0x{X}, {}, {s})", .{key_handle, value_name_opt, @tagName(kind)});
-    if(true) return .SUCCESS;
+    const key = vfs.openHandle(key_handle);
+    defer vfs.close(key);
+    const dir = key.get(.dir) orelse return .INVALID_PARAMETER;
     const value_name = value_name_opt orelse return .INVALID_PARAMETER;
-    const path = value_name.chars() orelse return .INVALID_PARAMETER;
-    const n = vfs.resolve16(path, true) catch return .NO_MEMORY;
-    const dir = getDir(n);
     const value = vfs.resolve16In(dir, value_name.chars() orelse return .INVALID_PARAMETER, true) catch return .NO_MEMORY;
+    var u8dbgbuf: [4096]u8 = undefined;
+    _ = u8dbgbuf;
+
+    switch(kind) {
+        .Symlink => {
+            const data16 = @ptrCast([*]const u16, @alignCast(2, data))[0..@divExact(data_size, 2)];
+            //log("-> Link value: '{s}'", .{u8dbgbuf[0..std.unicode.utf16leToUtf8(&u8dbgbuf, data16) catch unreachable]});
+            value.setSymlinkDyn(data16) catch return .NO_MEMORY;
+        },
+        .String => {
+            const data16 = @ptrCast([*]const u16, @alignCast(2, data))[0..@divExact(data_size, 2)];
+            //log("-> String value: '{s}'", .{u8dbgbuf[0..std.unicode.utf16leToUtf8(&u8dbgbuf, data16) catch unreachable]});
+            value.setStringDyn(data16) catch return .NO_MEMORY;
+        },
+        else => @panic("Bad key type!"),
+    }
     _ = value;
     _ = data_size;
     _ = data;
     _ = index;
     return .SUCCESS;
+}
+
+fn resovleAttrs(attrs_opt: ?*ObjectAttributes, create_deep: bool) ?*vfs.DirectoryEntry {
+    const attrs = attrs_opt orelse return null;
+    const name = attrs.name orelse return null;
+    const path = name.chars() orelse return null;
+    if(attrs.root_dir == 0) {
+        return vfs.resolve16(path, create_deep) catch return null;
+    } else {
+        const root = vfs.openHandle(attrs.root_dir);
+        const root_dir = root.get(.dir) orelse {
+            vfs.close(root);
+            return null;
+        };
+        return vfs.resolve16In(root_dir, path, create_deep) catch {
+            vfs.close(root);
+            return null;
+        };
+    }
+}
+
+fn NtOpenSymbolicLinkObject(
+    opt_handle: ?*rt.HANDLE,
+    desired_access: AccessMask,
+    opt_object_attributes: ?*ObjectAttributes,
+) callconv(.Win64) NTSTATUS {
+    log("STUB: NtOpenSymbolicLinkObject({})", .{opt_object_attributes});
+    const link = resovleAttrs(opt_object_attributes, true) orelse return .INVALID_PARAMETER;
+    defer vfs.close(link);
+    vfs.dump() catch unreachable;
+    _ = link.get(.symlink);
+    if(opt_handle) |oh| {
+        oh.* = vfs.handle(link);
+    }
+    _ = desired_access;
+    return .SUCCESS;
+}
+
+fn NtQuerySymbolicLinkObject(
+    link_handle: rt.HANDLE,
+    link_target_opt: ?*rt.UnicodeString,
+    out_length: ?*rt.ULONG,
+) callconv(.Win64) NTSTATUS {
+    log("NtQuerySymbolicLinkObject(0x{X})", .{link_handle});
+    const link_dirent = vfs.openHandle(link_handle);
+    defer vfs.close(link_dirent);
+    const link = link_dirent.get(.symlink) orelse @panic("Not a symlink!");
+    const buf_len = if(link_target_opt) |target| target.capacity else 0;
+
+    log("-> Valid symlink of length {d}, buffer size is {d}", .{link.len, buf_len});
+
+    if(out_length) |ol| ol.* = @intCast(rt.ULONG, link.len);
+    if(link.len > buf_len) return .BUFFER_TOO_SMALL;
+
+    const link_target = link_target_opt orelse return .INVALID_PARAMETER;
+    const data_ptr = link_target.buffer orelse return .INVALID_PARAMETER;
+    std.mem.copy(u16, data_ptr[0..link.len], link.*);
+    link_target.length = @intCast(u16, link.len);
+    return .SUCCESS;
+}
+
+var utf16_buffer: [2048]u16 = undefined;
+
+fn NtQueryDirectoryObject(
+    dir_handle: rt.HANDLE,
+    buffer: ?*u16,
+    buf_len: rt.ULONG,
+    return_single_entry: rt.BOOL,
+    restart_scan: rt.BOOL,
+    context_opt: ?*rt.ULONG,
+    return_length: ?*rt.ULONG,
+) callconv(.Win64) NTSTATUS {
+    std.debug.assert(return_single_entry != 0);
+    const context = context_opt orelse return .INVALID_PARAMETER;
+
+    log("NtQueryDirectoryObject(0x{X}, 0x{X})", .{dir_handle, @ptrToInt(return_length)});
+
+    const dh = vfs.openHandle(dir_handle);
+    defer vfs.close(dh);
+
+    if(restart_scan != 0) context.* = 0;
+    var idx = context.*;
+
+    var dirent = dh.next;
+    while(idx != 0) : (idx -= 1) {
+        std.debug.assert(dirent != -1);
+        dirent = vfs.dirents.items[@intCast(usize, dirent)].next;
+    }
+
+    if(dirent == -1) {
+        return .INFO_NO_MORE_ENTRIES;
+    }
+
+    if(true) @panic("TODO: NtQueryDirectoryObject ents");
+
+    _ = buffer;
+    _ = buf_len;
+
+    context.* += 1;
+    return .MORE_ENTRIES;
 }
 
 fn NtOpenEvent(
@@ -1058,12 +1217,14 @@ const Error = enum(rt.ULONG) {
 
 const NTSTATUS = enum(u32) {
     SUCCESS = 0x00000000,
+    MORE_ENTRIES = 0x00000105,
 
     INFO_NO_MORE_ENTRIES = 0x8000001A,
 
     INFO_LENGTH_MISMATCH = 0xC0000004,
     INVALID_PARAMETER = 0xC000000D,
     NO_MEMORY = 0xC0000017,
+    BUFFER_TOO_SMALL = 0xC0000023,
     SYSTEM_PROCESS_TERMINATED = 0xC000021A,
 };
 
@@ -1203,13 +1364,18 @@ const HardErrorResponse = enum(u32) {
     Yes,
 };
 
-// https://docs.microsoft.com/en-us/dotnet/api/microsoft.win32.registryvaluekind?view=net-6.0
 const RegistryValueKind = enum(rt.ULONG) {
     Unknown = 0,
     String = 1,
     ExpandString = 2,
     Binary = 3,
     DWord = 4,
+    DWordBigEndian = 5,
+    Symlink = 6,
+    MultiString = 7,
+    ResourceList = 8,
+    FullResourceDescription = 9,
+    ResourceRequirementsList = 10,
     QWord = 11,
     None = ~@as(rt.ULONG, 0),
 };
@@ -1420,7 +1586,7 @@ pub const builtin_symbols = blk: {
         .{ "RtlDosPathNameToNtPathName_U", stub("RtlDosPathNameToNtPathName_U") },
         .{ "NtCreateFile", NtCreateFile },
         .{ "NtReadFile", stub("NtReadFile") },
-        .{ "NtCreateKey", stub("NtCreateKey") },
+        .{ "NtCreateKey", NtCreateKey },
         .{ "NtAllocateVirtualMemory", stub("NtAllocateVirtualMemory") },
         .{ "NtWriteFile", stub("NtWriteFile") },
         .{ "NtFreeVirtualMemory", stub("NtFreeVirtualMemory") },
@@ -1452,8 +1618,8 @@ pub const builtin_symbols = blk: {
         .{ "NtResumeThread", stub("NtResumeThread") },
         .{ "NtWaitForSingleObject", stub("NtWaitForSingleObject") },
         .{ "NtTerminateProcess", NtTerminateProcess },
-        .{ "TpAllocWork", stub("TpAllocWork") },
-        .{ "TpPostWork", stub("TpPostWork") },
+        .{ "TpAllocWork", TpAllocWork },
+        .{ "TpPostWork", TpPostWork },
         .{ "TpWaitForWork", stub("TpWaitForWork") },
         .{ "TpReleaseWork", stub("TpReleaseWork") },
         .{ "_wcsupr_s", stub("_wcsupr_s") },
@@ -1463,8 +1629,8 @@ pub const builtin_symbols = blk: {
         .{ "_stricmp", stub("_stricmp") },
         .{ "RtlInitAnsiString", stub("RtlInitAnsiString") },
         .{ "RtlAnsiStringToUnicodeString", stub("RtlAnsiStringToUnicodeString") },
-        .{ "NtOpenSymbolicLinkObject", stub("NtOpenSymbolicLinkObject") },
-        .{ "NtQuerySymbolicLinkObject", stub("NtQuerySymbolicLinkObject") },
+        .{ "NtOpenSymbolicLinkObject", NtOpenSymbolicLinkObject },
+        .{ "NtQuerySymbolicLinkObject", NtQuerySymbolicLinkObject },
         .{ "RtlDosPathNameToNtPathName_U_WithStatus", stub("RtlDosPathNameToNtPathName_U_WithStatus") },
         .{ "RtlRandomEx", stub("RtlRandomEx") },
         .{ "qsort_s", stub("qsort_s") },
@@ -1493,13 +1659,13 @@ pub const builtin_symbols = blk: {
         .{ "NtDisplayString", stub("NtDisplayString") },
         .{ "RtlAddProcessTrustLabelAce", RtlAddProcessTrustLabelAce },
         .{ "RtlGetAce", RtlGetAce },
-        .{ "NtQueryDirectoryObject", stub("NtQueryDirectoryObject") },
+        .{ "NtQueryDirectoryObject", NtQueryDirectoryObject },
         .{ "RtlTimeToTimeFields", stub("RtlTimeToTimeFields") },
         .{ "NtDeleteFile", stub("NtDeleteFile") },
         .{ "RtlAcquireSRWLockExclusive", stub("RtlAcquireSRWLockExclusive") },
         .{ "NtAlpcDisconnectPort", stub("NtAlpcDisconnectPort") },
         .{ "RtlReleaseSRWLockExclusive", stub("RtlReleaseSRWLockExclusive") },
-        .{ "RtlAcquireSRWLockShared", stub("RtlAcquireSRWLockShared") },
+        .{ "RtlAcquireSRWLockShared", RtlAcquireSRWLockShared },
         .{ "RtlReleaseSRWLockShared", stub("RtlReleaseSRWLockShared") },
         .{ "NtAlpcImpersonateClientOfPort", stub("NtAlpcImpersonateClientOfPort") },
         .{ "NtOpenThreadToken", stub("NtOpenThreadToken") },
@@ -1518,7 +1684,7 @@ pub const builtin_symbols = blk: {
         .{ "NtRequestWaitReplyPort", stub("NtRequestWaitReplyPort") },
         .{ "NtCreateEvent", NtCreateEvent },
         .{ "RtlDeleteNoSplay", stub("RtlDeleteNoSplay") },
-        .{ "RtlSleepConditionVariableSRW", stub("RtlSleepConditionVariableSRW") },
+        .{ "RtlSleepConditionVariableSRW", RtlSleepConditionVariableSRW },
         .{ "RtlWakeAllConditionVariable", stub("RtlWakeAllConditionVariable") },
         .{ "NtAssignProcessToJobObject", stub("NtAssignProcessToJobObject") },
         .{ "EtwGetTraceLoggerHandle", stub("EtwGetTraceLoggerHandle") },

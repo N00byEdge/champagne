@@ -3,18 +3,22 @@ const std = @import("std");
 var tp_alloc = std.heap.GeneralPurposeAllocator(.{}){ .backing_allocator = std.heap.page_allocator };
 var work_alloc = std.heap.GeneralPurposeAllocator(.{}){ .backing_allocator = std.heap.page_allocator };
 
-const Work = fn(
-    CallbackInstance,
+pub const Work = fn(
+    Environment,
     Context,
     *anyopaque,
 ) callconv(.Win64) void;
 
-const Context = u64;
-const CallbackInstance = u64;
+pub const Context = u64;
+pub const Environment = *extern struct {
+    version: u32,
+    pool: ?*ThreadPool,
+    // ...
+};
 
-const TPWork = struct {
+pub const TPWork = struct {
     queue_node: std.TailQueue(void).Node,
-    callback_environ: CallbackInstance,
+    env: Environment,
     context: Context,
     work: ?Work,
 };
@@ -42,13 +46,13 @@ const WorkQueue = struct {
     }
 };
 
-pub fn allocWork(work: ?Work, context: Context, callback_environ: CallbackInstance) !*TPWork {
+pub fn allocWork(work: ?Work, context: Context, env: Environment) !*TPWork {
     const ptr = try work_alloc.allocator().create(TPWork);
     ptr.* = .{
         .queue_node = undefined,
         .work = work,
         .context = context,
-        .callback_environ = callback_environ,
+        .env = env,
     };
     return ptr;
 }
@@ -89,7 +93,7 @@ pub const ThreadPool = struct {
         }
     }
 
-    pub fn addWork(self: *@This(), work: Work) !void {
+    pub fn addWork(self: *@This(), work: *TPWork) !void {
         self.queue.push(work);
     }
 
@@ -113,7 +117,7 @@ pub const ThreadPool = struct {
             const work = self.queue.pop();
             if(work.work) |f| {
                 f(
-                    work.callback_environ,
+                    work.env,
                     work.context,
                     work,
                 );
