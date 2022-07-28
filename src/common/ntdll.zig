@@ -997,6 +997,28 @@ fn NtClose(
     return .SUCCESS;
 }
 
+fn NtDuplicateObject(
+    source_process: rt.HANDLE,
+    source_handle: rt.HANDLE,
+    target_process: rt.HANDLE,
+    target_handle_opt: ?*rt.HANDLE,
+    desired_access: AccessMask,
+    inherit_handle: rt.BOOL,
+    options: rt.ULONG,
+) callconv(.Win64) NTSTATUS {
+    log("STUB: NtDuplicateObject(0x{X})", .{source_handle});
+    _ = source_process;
+    _ = target_process;
+
+    _ = desired_access;
+    _ = inherit_handle;
+    _ = options;
+
+    const target_handle = target_handle_opt orelse return .INVALID_PARAMETER;
+    target_handle.* = source_handle;
+    return .SUCCESS;
+}
+
 fn RtlCreateEnvironment(
     inherit: rt.BOOL,
     env: ?*rt.PCWSTR,
@@ -1457,7 +1479,7 @@ pub const builtin_symbols = blk: {
         .{ "NtCreateSection", NtCreateSection },
         .{ "NtMapViewOfSection", NtMapViewOfSection },
         .{ "NtUnmapViewOfSection", NtUnmapViewOfSection },
-        .{ "NtDuplicateObject", stub("NtDuplicateObject") },
+        .{ "NtDuplicateObject", NtDuplicateObject },
         .{ "NtQueryInformationJobObject", NtQueryInformationJobObject },
         .{ "iswctype", stub("iswctype") },
         .{ "RtlQueryEnvironmentVariable_U", stub("RtlQueryEnvironmentVariable_U") },
