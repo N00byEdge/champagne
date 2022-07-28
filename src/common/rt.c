@@ -78,6 +78,11 @@ int _vsnwprintf_s(
                 base = 10;
                 continue;
             }
+            case 'c': {
+                WCHAR w = va_arg(args, WCHAR);
+                *buffer++ = w;
+                continue;
+            }
             case 'w': if(*format++ != 's') c_panic(u"non-s w fmt prefix");
             case 's': {
                 WCHAR const *str = va_arg(args, WCHAR const *);
