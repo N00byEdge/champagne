@@ -57,6 +57,10 @@ pub fn allocWork(work: ?Work, context: Context, env: Environment) !*TPWork {
     return ptr;
 }
 
+pub fn releaseWork(work: *TPWork) void {
+    work_alloc.allocator().destroy(work);
+}
+
 pub fn allocPool() !*ThreadPool {
     const p = try tp_alloc.allocator().create(ThreadPool);
     p.* = .{};
@@ -122,7 +126,7 @@ pub const ThreadPool = struct {
                     work,
                 );
             } else {
-                work_alloc.allocator().destroy(work);
+                releaseWork(work);
                 return;
             }
         }

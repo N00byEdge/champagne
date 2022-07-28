@@ -208,6 +208,14 @@ fn TpPostWork(
     return .SUCCESS;
 }
 
+fn TpReleaseWork(
+    work_opt: ?*tp.TPWork,
+) callconv(.Win64) NTSTATUS {
+    log("TpReleaseWork(0x{X})", .{@ptrToInt(work_opt)});
+    tp.releaseWork(work_opt orelse return .INVALID_PARAMETER);
+    return .SUCCESS;
+}
+
 fn TpSetPoolMinThreads(
     pool: ?*tp.ThreadPool,
     min_threads: rt.ULONG,
@@ -1658,7 +1666,7 @@ pub const builtin_symbols = blk: {
         .{ "TpAllocWork", TpAllocWork },
         .{ "TpPostWork", TpPostWork },
         .{ "TpWaitForWork", stub("TpWaitForWork") },
-        .{ "TpReleaseWork", stub("TpReleaseWork") },
+        .{ "TpReleaseWork", TpReleaseWork },
         .{ "_wcsupr_s", stub("_wcsupr_s") },
         .{ "NtOpenDirectoryObject", NtOpenDirectoryObject },
         .{ "NtCreateSymbolicLinkObject", stub("NtCreateSymbolicLinkObject") },
