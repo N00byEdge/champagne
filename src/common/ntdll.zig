@@ -439,6 +439,13 @@ fn RtlInitializeSRWLock(
     lock.?.* = .{};
 }
 
+fn RtlAcquireSRWLockExclusive(
+    lock: ?*Mutex,
+) callconv(.Win64) void {
+    log("RtlAcquireSRWLockExclusive(0x{X})", .{@ptrToInt(lock)});
+    lock.?.lock();
+}
+
 fn RtlAcquireSRWLockShared(
     lock: ?*Mutex,
 ) callconv(.Win64) void {
@@ -1707,7 +1714,7 @@ pub const builtin_symbols = blk: {
         .{ "NtQueryDirectoryObject", NtQueryDirectoryObject },
         .{ "RtlTimeToTimeFields", stub("RtlTimeToTimeFields") },
         .{ "NtDeleteFile", stub("NtDeleteFile") },
-        .{ "RtlAcquireSRWLockExclusive", stub("RtlAcquireSRWLockExclusive") },
+        .{ "RtlAcquireSRWLockExclusive", RtlAcquireSRWLockExclusive },
         .{ "NtAlpcDisconnectPort", stub("NtAlpcDisconnectPort") },
         .{ "RtlReleaseSRWLockExclusive", stub("RtlReleaseSRWLockExclusive") },
         .{ "RtlAcquireSRWLockShared", RtlAcquireSRWLockShared },
