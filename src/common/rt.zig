@@ -125,7 +125,7 @@ pub const UnicodeString = extern struct {
     capacity: USHORT,
     buffer: ?[*]WCHAR,
 
-    pub fn initFromBuffer(buf: [:0]WCHAR) UnicodeString {
+    pub fn initFromBuffer(buf: []WCHAR) UnicodeString {
         return .{
             .length = @intCast(USHORT, buf.len << 1),
             .capacity = @intCast(USHORT, buf.len << 1),

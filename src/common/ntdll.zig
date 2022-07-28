@@ -268,7 +268,11 @@ fn RtlInitUnicodeStringEx(
     src: rt.PCWSTR,
 ) callconv(.Win64) NTSTATUS {
     log("RtlInitUnicodeStringEx({})", .{rt.fmt(src)});
-    const str = src orelse return .INVALID_PARAMETER;
+    const str = src orelse {
+        var buf = [_]u16{};
+        (dest orelse return .INVALID_PARAMETER).* = rt.UnicodeString.initFromBuffer(&buf);
+        return .SUCCESS;
+    };
     (dest orelse return .INVALID_PARAMETER).* =
         rt.UnicodeString.initFromBuffer(rtl_unicode_string_heap.allocator().dupeZ(u16, std.mem.span(str)) catch return .NO_MEMORY);
     return .SUCCESS;
