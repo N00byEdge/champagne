@@ -636,15 +636,13 @@ fn memcpy(
 
 const BitmapT = rt.ULONG;
 const BitmapData = [*]BitmapT;
-const RTLBitmap = std.DynamicBitSetUnmanaged(BitmapT);
+const RTLBitmap = std.DynamicBitSetCustomUnmanaged(BitmapT);
 
 comptime {
     // This seems to be the size allocated for these
     // even though it's supposed to be an opaque struct (???)
     std.debug.assert(@sizeOf(RTLBitmap) <= 0x10);
 }
-
-var bitmap_allocator = std.heap.GeneralPurposeAllocator(.{}){ .backing_allocator = std.heap.page_allocator };
 
 fn RtlInitializeBitMap(
     bm: *RTLBitmap,
@@ -709,6 +707,17 @@ fn getMutex(dirent: *vfs.DirectoryEntry) *std.Thread.Mutex {
     }
 }
 
+fn getDir(dirent: *vfs.DirectoryEntry) *i32 {
+    switch(dirent.value) {
+        .dir => |*d| return d,
+        .newly_created => {
+            dirent.value = .{.dir = -1};
+            return &dirent.value.dir;
+        },
+        else => @panic("getDir else file type"),
+    }
+}
+
 fn NtCreateMutant(
     opt_handle: ?*rt.HANDLE,
     desired_access: AccessMask,
@@ -735,10 +744,248 @@ fn NtOpenKey(
     desired_access: AccessMask,
     opt_object_attributes: ?*ObjectAttributes,
 ) callconv(.Win64) NTSTATUS {
-    _ = opt_object_attributes;
     log("STUB: NtOpenKey({})", .{opt_object_attributes});
+    const attr = opt_object_attributes orelse return .INVALID_PARAMETER;
+    const path = attr.name orelse return .INVALID_PARAMETER;
+    const n = vfs.resolve16(path.chars() orelse return .INVALID_PARAMETER, true) catch return .NO_MEMORY;
+    _ = getDir(n);
+    if(opt_handle) |out| {
+        out.* = vfs.handle(n);
+    }
+    vfs.close(n);
+    _ = desired_access;
+    return .SUCCESS;
+}
+
+fn NtCreateDirectoryObject(
+    opt_handle: ?*rt.HANDLE,
+    desired_access: AccessMask,
+    opt_object_attributes: ?*ObjectAttributes,
+) callconv(.Win64) NTSTATUS {
+    log("STUB: NtCreateDirectoryObject({})", .{opt_object_attributes});
+    const attr = opt_object_attributes orelse return .INVALID_PARAMETER;
+    const path = attr.name orelse return .INVALID_PARAMETER;
+    const n = vfs.resolve16(path.chars() orelse return .INVALID_PARAMETER, true) catch return .NO_MEMORY;
+    _ = getDir(n);
+    if(opt_handle) |out| {
+        out.* = vfs.handle(n);
+    }
+    vfs.close(n);
+    _ = desired_access;
+    return .SUCCESS;
+}
+
+fn NtCreateFile(
+    opt_handle: ?*rt.HANDLE,
+    desired_access: AccessMask,
+    opt_object_attributes: ?*ObjectAttributes,
+    io_status_block: rt.PVOID,
+    allocation_size: ?*rt.LARGEINT,
+    file_attrs: rt.ULONG,
+    share_access: rt.ULONG,
+    create_disposition: rt.ULONG,
+    create_options: rt.ULONG,
+    ea_buffer: rt.PVOID,
+    ea_length: rt.ULONG,
+) callconv(.Win64) NTSTATUS {
     _ = opt_handle;
     _ = desired_access;
+    log("STUB: NtCreateFile({})", .{opt_object_attributes});
+    _ = io_status_block;
+    _ = allocation_size;
+    _ = file_attrs;
+    _ = share_access;
+    _ = create_disposition;
+    _ = create_options;
+    _ = ea_buffer;
+    _ = ea_length;
+    return .SUCCESS;
+}
+
+fn NtOpenFile(
+    opt_handle: ?*rt.HANDLE,
+    desired_access: AccessMask,
+    opt_object_attributes: ?*ObjectAttributes,
+    io_status_block: rt.PVOID,
+    share_access: rt.ULONG,
+    open_options: rt.ULONG,
+) callconv(.Win64) NTSTATUS {
+    _ = opt_handle;
+    _ = desired_access;
+    log("STUB: NtOpenFile({})", .{opt_object_attributes});
+    _ = io_status_block;
+    _ = share_access;
+    _ = open_options;
+    return .SUCCESS;
+}
+
+fn NtCreateSection(
+    opt_handle: ?*rt.HANDLE,
+    desired_access: AccessMask,
+    opt_object_attributes: ?*ObjectAttributes,
+    max_size: ?*rt.LARGEINT,
+    section_page_protection: rt.ULONG,
+    allocation_attributes: rt.ULONG,
+    file_handle: rt.ULONG,
+) callconv(.Win64) NTSTATUS {
+    const size = @intCast(usize, (max_size orelse return .INVALID_PARAMETER).*);
+    _ = desired_access;
+    _ = section_page_protection;
+    _ = allocation_attributes;
+    _ = opt_handle;
+    log("STUB: NtCreateSection({}, 0x{X}, 0x{X})", .{opt_object_attributes, file_handle, size});
+    std.debug.assert(opt_object_attributes == null or opt_object_attributes.?.name == null);
+    std.debug.assert(file_handle == 0);
+    if(opt_handle) |h| {
+        h.* = @intCast(rt.HANDLE, std.os.memfd_createZ("NtCreateSection", 0) catch return .NO_MEMORY);
+        log("-> Returning linux memfd {d} with size 0x{X}", .{h.*, size});
+        std.os.ftruncate(@intCast(i32, h.*), size) catch unreachable;
+        h.* |= @intCast(rt.HANDLE, size << 32);
+    } else {
+        unreachable;
+    }
+    return .SUCCESS;
+}
+
+var section_view_map: std.AutoHashMapUnmanaged(usize, usize) = .{};
+var section_view_alloc = std.heap.GeneralPurposeAllocator(.{}){ .backing_allocator = std.heap.page_allocator };
+
+fn NtMapViewOfSection(
+    section_handle: rt.HANDLE,
+    process_handle: rt.HANDLE,
+    base_addr_opt: ?*?[*]align(0x1000) u8,
+    zero_bits: rt.ULONG,
+    commit_size: rt.ULONG,
+    section_offset_opt: ?*rt.LARGEINT,
+    view_size_opt: ?*rt.ULONG,
+    inherit_dispotision: c_int,
+    allocation_type: rt.ULONG,
+    protect: rt.ULONG,
+) callconv(.Win64) NTSTATUS {
+    const base_addr = base_addr_opt orelse return .INVALID_PARAMETER;
+    const section_offset_value = if(section_offset_opt) |so| so.* else 0;
+
+    _ = process_handle;
+
+    const fd = @truncate(u32, section_handle);
+    const view_size_value = rt.alignPageUp(@truncate(u32, section_handle >> 32));
+
+    log("STUB: NtMapViewOfSection(fd=0x{X}, base=0x{X}, size=0x{X}, offset=0x{X})", .{
+        fd,
+        @ptrToInt(base_addr.*),
+        view_size_value,
+        section_offset_value,
+    });
+
+    const mem = std.os.mmap(
+        base_addr.*,
+        view_size_value,
+        std.os.PROT.READ | std.os.PROT.WRITE,
+        std.os.MAP.SHARED,
+        @intCast(i32, fd),
+        @intCast(usize, section_offset_value),
+    ) catch return .NO_MEMORY;
+
+    section_view_map.putNoClobber(
+        section_view_alloc.allocator(),
+        @ptrToInt(mem.ptr),
+        view_size_value,
+    ) catch {
+        std.os.munmap(mem);
+        return .NO_MEMORY;
+    };
+
+    log("-> returning mmap ptr 0x{x}", .{@ptrToInt(mem.ptr)});
+    base_addr.* = mem.ptr;
+    if(section_offset_opt) |so| {
+        so.* = section_offset_value;
+    }
+    if(view_size_opt) |sz| {
+        sz.* = @intCast(u32, view_size_value);
+    }
+
+    _ = protect;
+    _ = allocation_type;
+    _ = inherit_dispotision;
+    _ = commit_size;
+    _ = zero_bits;
+
+    return .SUCCESS;
+}
+
+fn NtUnmapViewOfSection(
+    process_handle: rt.HANDLE,
+    base_addr: usize,
+) callconv(.Win64) NTSTATUS {
+    _ = process_handle;
+    log("NtUnmapViewOfSection(0x{X})", .{base_addr});
+    if(section_view_map.get(base_addr)) |size| {
+        log("-> Mapping of size 0x{X} found", .{size});
+        std.debug.assert(section_view_map.remove(base_addr));
+        std.os.munmap(@intToPtr([*]align(0x1000)u8, base_addr)[0..size]);
+        return .SUCCESS;
+    }
+    log("-> No mapping found!!", .{});
+    return .INVALID_PARAMETER;
+}
+
+fn NtDeleteValueKey(
+    key_handle: rt.HANDLE,
+    value_name: ?*rt.UnicodeString,
+) callconv(.Win64) NTSTATUS {
+    _ = value_name;
+    log("STUB: NtDeleteValueKey(0x{X}, {})", .{key_handle, value_name});
+    _ = key_handle;
+    return .SUCCESS;   
+}
+
+fn NtSetValueKey(
+    key_handle: rt.HANDLE,
+    value_name_opt: ?*rt.UnicodeString,
+    index: rt.ULONG,
+    kind: RegistryValueKind,
+    data: rt.PVOID,
+    data_size: rt.PVOID,
+) callconv(.Win64) NTSTATUS {
+    log("STUB: NtSetValueKey(0x{X}, {}, {s})", .{key_handle, value_name_opt, @tagName(kind)});
+    if(true) return .SUCCESS;
+    const value_name = value_name_opt orelse return .INVALID_PARAMETER;
+    const path = value_name.chars() orelse return .INVALID_PARAMETER;
+    const n = vfs.resolve16(path, true) catch return .NO_MEMORY;
+    const dir = getDir(n);
+    const value = vfs.resolve16In(dir, value_name.chars() orelse return .INVALID_PARAMETER, true) catch return .NO_MEMORY;
+    _ = value;
+    _ = data_size;
+    _ = data;
+    _ = index;
+    return .SUCCESS;
+}
+
+fn NtOpenEvent(
+    opt_handle: ?*rt.HANDLE,
+    desired_access: AccessMask,
+    opt_object_attributes: ?*ObjectAttributes,
+) callconv(.Win64) NTSTATUS {
+    _ = opt_object_attributes;
+    log("STUB: NtOpenEvent({})", .{opt_object_attributes});
+    _ = opt_handle;
+    _ = desired_access;
+    return .SUCCESS;
+}
+
+fn NtCreateEvent(
+    opt_handle: ?*rt.HANDLE,
+    desired_access: AccessMask,
+    opt_object_attributes: ?*ObjectAttributes,
+    event_type: rt.ULONG,
+    initial_state: rt.BOOL,
+) NTSTATUS {
+    _ = opt_object_attributes;
+    log("STUB: NtCreateEvent()", .{});
+    _ = opt_handle;
+    _ = desired_access;
+    _ = event_type;
+    _ = initial_state;
     return .SUCCESS;
 }
 
@@ -756,7 +1003,7 @@ fn RtlCreateEnvironment(
 ) callconv(.Win64) NTSTATUS {
     _ = inherit;
     _ = env;
-    log("STUB: RtlCreateEnvironment()", .{});
+    log("STUB: RtlCreateEnvironment({b}, {s})", .{inherit != 0, env});
     return .SUCCESS;
 }
 
@@ -776,7 +1023,7 @@ const ObjectAttributes = extern struct {
     ) !void {
         _ = layout;
         _ = opts;
-        try writer.print("Attribs{{ .root_dir=0x{X}, name={}", .{
+        try writer.print("Attribs{{ .root_dir=0x{X}, name={} }}", .{
             self.root_dir,
             self.name,
         });
@@ -932,6 +1179,17 @@ const HardErrorResponse = enum(u32) {
     Ok,
     Retry,
     Yes,
+};
+
+// https://docs.microsoft.com/en-us/dotnet/api/microsoft.win32.registryvaluekind?view=net-6.0
+const RegistryValueKind = enum(rt.ULONG) {
+    Unknown = 0,
+    String = 1,
+    ExpandString = 2,
+    Binary = 3,
+    DWord = 4,
+    QWord = 11,
+    None = ~@as(rt.ULONG, 0),
 };
 
 // https://www.geoffchappell.com/studies/windows/km/ntoskrnl/api/ex/sysinfo/class.htm
@@ -1103,13 +1361,13 @@ pub const builtin_symbols = blk: {
         .{ "NtQuerySystemInformation", NtQuerySystemInformation },
         .{ "RtlAllocateHeap", RtlAllocateHeap },
         .{ "RtlFreeHeap", RtlFreeHeap },
-        .{ "NtSetValueKey", stub("NtSetValueKey") },
+        .{ "NtSetValueKey", NtSetValueKey },
         .{ "RtlFreeUnicodeString", stub("RtlFreeUnicodeString") },
         .{ "NtDeviceIoControlFile", stub("NtDeviceIoControlFile") },
         .{ "NtQueryValueKey", stub("NtQueryValueKey") },
         .{ "RtlInitUnicodeString", RtlInitUnicodeString },
         .{ "RtlPrefixUnicodeString", stub("RtlPrefixUnicodeString") },
-        .{ "NtOpenFile", stub("NtOpenFile") },
+        .{ "NtOpenFile", NtOpenFile },
         .{ "NtQueryVolumeInformationFile", stub("NtQueryVolumeInformationFile") },
         .{ "NtQueryInformationProcess", stub("NtQueryInformationProcess") },
         .{ "RtlInitUnicodeStringEx", RtlInitUnicodeStringEx },
@@ -1124,7 +1382,7 @@ pub const builtin_symbols = blk: {
         .{ "RtlCompareUnicodeString", stub("RtlCompareUnicodeString") },
         .{ "RtlAppendUnicodeStringToString", RtlAppendUnicodeStringToString },
         .{ "RtlCompareMemory", stub("RtlCompareMemory") },
-        .{ "NtDeleteValueKey", stub("NtDeleteValueKey") },
+        .{ "NtDeleteValueKey", NtDeleteValueKey },
         .{ "NtFlushKey", stub("NtFlushKey") },
         .{ "NtUpdateWnfStateData", stub("NtUpdateWnfStateData") },
         .{ "NtSerializeBoot", stub("NtSerializeBoot") },
@@ -1138,7 +1396,7 @@ pub const builtin_symbols = blk: {
         .{ "NtSetSecurityObject", stub("NtSetSecurityObject") },
         .{ "RtlExpandEnvironmentStrings_U", stub("RtlExpandEnvironmentStrings_U") },
         .{ "RtlDosPathNameToNtPathName_U", stub("RtlDosPathNameToNtPathName_U") },
-        .{ "NtCreateFile", stub("NtCreateFile") },
+        .{ "NtCreateFile", NtCreateFile },
         .{ "NtReadFile", stub("NtReadFile") },
         .{ "NtCreateKey", stub("NtCreateKey") },
         .{ "NtAllocateVirtualMemory", stub("NtAllocateVirtualMemory") },
@@ -1161,11 +1419,11 @@ pub const builtin_symbols = blk: {
         .{ "RtlInitializeBitMap", RtlInitializeBitMap },
         .{ "RtlClearAllBits", RtlClearAllBits },
         .{ "RtlSetBits", RtlSetBits },
-        .{ "NtOpenEvent", stub("NtOpenEvent") },
+        .{ "NtOpenEvent", NtOpenEvent },
         .{ "RtlCreateEnvironment", RtlCreateEnvironment },
         .{ "RtlSetCurrentEnvironment", stub("RtlSetCurrentEnvironment") },
         .{ "RtlQueryRegistryValuesEx", stub("RtlQueryRegistryValuesEx") },
-        .{ "NtCreateDirectoryObject", stub("NtCreateDirectoryObject") },
+        .{ "NtCreateDirectoryObject", NtCreateDirectoryObject },
         .{ "RtlEqualUnicodeString", stub("RtlEqualUnicodeString") },
         .{ "NtSetEvent", stub("NtSetEvent") },
         .{ "NtInitializeRegistry", stub("NtInitializeRegistry") },
@@ -1196,9 +1454,9 @@ pub const builtin_symbols = blk: {
         .{ "RtlWriteRegistryValue", stub("RtlWriteRegistryValue") },
         .{ "_wcsicmp", stub("_wcsicmp") },
         .{ "RtlSetEnvironmentVariable", stub("RtlSetEnvironmentVariable") },
-        .{ "NtCreateSection", stub("NtCreateSection") },
-        .{ "NtMapViewOfSection", stub("NtMapViewOfSection") },
-        .{ "NtUnmapViewOfSection", stub("NtUnmapViewOfSection") },
+        .{ "NtCreateSection", NtCreateSection },
+        .{ "NtMapViewOfSection", NtMapViewOfSection },
+        .{ "NtUnmapViewOfSection", NtUnmapViewOfSection },
         .{ "NtDuplicateObject", stub("NtDuplicateObject") },
         .{ "NtQueryInformationJobObject", NtQueryInformationJobObject },
         .{ "iswctype", stub("iswctype") },
@@ -1236,7 +1494,7 @@ pub const builtin_symbols = blk: {
         .{ "NtAlpcAcceptConnectPort", stub("NtAlpcAcceptConnectPort") },
         .{ "NtConnectPort", stub("NtConnectPort") },
         .{ "NtRequestWaitReplyPort", stub("NtRequestWaitReplyPort") },
-        .{ "NtCreateEvent", stub("NtCreateEvent") },
+        .{ "NtCreateEvent", NtCreateEvent },
         .{ "RtlDeleteNoSplay", stub("RtlDeleteNoSplay") },
         .{ "RtlSleepConditionVariableSRW", stub("RtlSleepConditionVariableSRW") },
         .{ "RtlWakeAllConditionVariable", stub("RtlWakeAllConditionVariable") },

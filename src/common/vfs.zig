@@ -34,6 +34,26 @@ fn CodePointPeeker(comptime T: type) type {
             }
             return false;
         }
+
+        fn peekString(self: *@This(), value: []const u8) bool {
+            var copy = self.*;
+            for(value) |b| {
+                if(!copy.take(b)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        fn takeString(self: *@This(), value: []const u8) bool {
+            if(self.peekString(value)) {
+                for(value) |b| {
+                    std.debug.assert(self.take(b));
+                }
+                return true;
+            }
+            return false;
+        }
     };
 }
 
@@ -55,7 +75,7 @@ fn allocIdx() !i32 {
     }
 
     const result = @intCast(i32, dirents.items.len);
-    _ = try dirents.addOne(vfs_alloc.allocator());
+    _ = dirents.addOneAssumeCapacity();
     return result;
 }
 
@@ -71,6 +91,7 @@ pub const DirectoryEntry = struct {
 
 pub var fs_root: i32 = -1;
 pub var object_root: i32 = -1;
+pub var registry_root: i32 = -1;
 
 pub fn caseInsensitiveEq(lhs: u21, rhs: u21) bool {
     if(lhs <= 0x7F and rhs <= 0x7F) {
@@ -125,11 +146,21 @@ pub fn resolveInDir(current_dir_c: *i32, cpp: anytype, create_deep: bool) !*Dire
     var current_dir = current_dir_c;
     while(true) {
         const res = try resolveSingleStep(current_dir, cpp, create_deep);
-        if(cpp.peek()) |p| {
-            if(p == '\\') {
-                current_dir = &res.value.dir;
-            } else {
+        if(cpp.next()) |n| {
+            if(n != '\\') {
                 @panic("resolveInDir char not consumed");
+            }
+            switch(res.value) {
+                .newly_created => {
+                    if(create_deep) {
+                        res.value = .{.dir = -1};
+                        current_dir = &res.value.dir;
+                    } else {
+                        return error.DoesNotExist;
+                    }
+                },
+                .dir => |*d| current_dir = d,
+                else => return error.NotDirectory,
             }
         } else {
             return res;
@@ -141,11 +172,19 @@ pub fn resolve(cpp: anytype, create_deep: bool) !*DirectoryEntry {
     dirents_mutex.lock();
     errdefer dirents_mutex.unlock();
 
-    if(cpp.take('\\')) {
-        return resolveInDir(&object_root, cpp, create_deep);
-    } else {
+    try dirents.ensureUnusedCapacity(vfs_alloc.allocator(), 100); // Ought to be enough for anybody
+
+    _ = cpp.takeString("\\??\\");
+    if(cpp.takeString("\\Registry\\")) {
+        return resolveInDir(&registry_root, cpp, create_deep);
+    }
+    if(cpp.takeString("C:\\")) {
         return resolveInDir(&fs_root, cpp, create_deep);
     }
+    if(cpp.take('\\')) {
+        return resolveInDir(&object_root, cpp, create_deep);
+    }
+    return resolveInDir(&fs_root, cpp, create_deep);
 }
 
 pub fn close(dirent: *DirectoryEntry) void {
@@ -169,6 +208,12 @@ pub fn openHandle(h: rt.HANDLE) *DirectoryEntry {
     const handle_idx = h & ~VALID_HANDLE;
     dirents_mutex.lock();
     return dirents.items[handle_idx];
+}
+
+pub fn resolve16In(dir: *i32, path: []const u16, create: bool) !*DirectoryEntry {
+    var it = std.unicode.Utf16LeIterator.init(path);
+    var cpp = CodePointPeeker(@TypeOf(it)){.impl = it};
+    return resolveSingleStep(dir, &cpp, create);
 }
 
 pub fn resolve16(path: []const u16, create_deep: bool) !*DirectoryEntry {

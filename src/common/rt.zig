@@ -13,6 +13,7 @@ pub const ULONG = u32;
 pub const SIZE_T = u32;
 pub const ULONGLONG = u64;
 pub const KAFFINITY = u64;
+pub const LARGEINT = i64;
 
 pub const WCHAR = u16;
 
@@ -33,6 +34,10 @@ export fn c_log_impl(function: ?[*:0]u8, file: ?[*:0]u8, line: c_int, msg: ?[*:0
 export fn c_panic_impl(function: ?[*:0]u8, file: ?[*:0]u8, line: c_int, msg: ?[*:0]WCHAR) callconv(.Win64) void {
     std.debug.print("{s}: {s}:{d}: {}\n", .{ function, file, line, fmt(msg) });
     @panic("");
+}
+
+pub fn alignPageUp(value: usize) usize {
+    return (value + 0xFFF) & ~@as(usize, 0xFFF);
 }
 
 pub fn Fmt(comptime T: type) type {
