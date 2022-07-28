@@ -30,11 +30,11 @@ pub const LPCWSTR = ?[*:0]const WCHAR;
 const log = @import("log.zig").scoped(.rt);
 
 export fn c_log_impl(function: ?[*:0]u8, file: ?[*:0]u8, line: c_int, msg: ?[*:0]WCHAR) callconv(.Win64) void {
-    log("{s}: {s}:{d}: {}\n", .{ function, file, line, fmt(msg) });
+    log("{s}: {s}:{d}: {}", .{ function, file, line, fmt(msg) });
 }
 
 export fn c_panic_impl(function: ?[*:0]u8, file: ?[*:0]u8, line: c_int, msg: ?[*:0]WCHAR) callconv(.Win64) void {
-    log("{s}: {s}:{d}: {}\n", .{ function, file, line, fmt(msg) });
+    log("{s}: {s}:{d}: {}", .{ function, file, line, fmt(msg) });
     @panic("");
 }
 
