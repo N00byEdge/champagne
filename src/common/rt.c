@@ -51,7 +51,7 @@ int _vsnwprintf_s(
     int base = 10;
 
     while(*format) {
-        if(*format++ == '%') {
+        if(*format++ == '%') { while(1) {
             switch(*format++) {
             case '0' ... '9':
                 min_len *= 10;
@@ -76,12 +76,12 @@ int _vsnwprintf_s(
                 upper = 1;
                 min_len = 0;
                 base = 10;
-                continue;
+                goto endfmt;
             }
             case 'c': {
-                WCHAR w = va_arg(args, WCHAR);
+                WCHAR w = va_arg(args, int);
                 *buffer++ = w;
-                continue;
+                goto endfmt;
             }
             case 'w': if(*format++ != 's') c_panic(u"non-s w fmt prefix");
             case 's': {
@@ -91,13 +91,13 @@ int _vsnwprintf_s(
                     WRITE;
                     *buffer++ = *str++;
                 }
-                continue;
+                goto endfmt;
             }
             default:
                 c_log(format-1);
                 c_panic(u"Unknown format specifier!");
             }
-        } else {
+        } endfmt:; } else {
             WRITE;
             *buffer++ = *(format-1);
         }
