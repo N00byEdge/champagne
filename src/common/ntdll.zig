@@ -979,9 +979,9 @@ fn NtCreateEvent(
     opt_object_attributes: ?*ObjectAttributes,
     event_type: rt.ULONG,
     initial_state: rt.BOOL,
-) NTSTATUS {
+) callconv(.Win64) NTSTATUS {
     _ = opt_object_attributes;
-    log("STUB: NtCreateEvent()", .{});
+    log("STUB: NtCreateEvent({})", .{opt_object_attributes});
     _ = opt_handle;
     _ = desired_access;
     _ = event_type;
