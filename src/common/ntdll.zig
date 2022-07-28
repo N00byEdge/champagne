@@ -36,6 +36,39 @@ fn iswspace(chr: rt.WCHAR) callconv(.Win64) rt.BOOL {
     return rt.FALSE;
 }
 
+fn iswctype(chr: rt.WCHAR, mask: u16) callconv(.Win64) rt.BOOL {
+    const upper = 1 << 0;
+    const lower = 1 << 1;
+    const digit = 1 << 2;
+    const space = 1 << 3;
+    const punct = 1 << 4;
+    const control = 1 << 5;
+    const blank = 1 << 6;
+    const hex = 1 << 7;
+    const alpha = 1 << 8;
+    const leadbyte = 1 << 15;
+
+    var ch_result: u16 = 0;
+    if(chr <= 0x7F) {
+        const ascii = @intCast(u8, chr);
+        if(std.ascii.isUpper(ascii)) ch_result |= upper;
+        if(std.ascii.isLower(ascii)) ch_result |= lower;
+        if(std.ascii.isDigit(ascii)) ch_result |= digit;
+        if(std.ascii.isSpace(ascii)) ch_result |= space;
+        if(std.ascii.isPunct(ascii)) ch_result |= punct;
+        if(std.ascii.isCntrl(ascii)) ch_result |= control;
+        if(std.ascii.isBlank(ascii)) ch_result |= blank;
+        if(std.ascii.isXDigit(ascii)) ch_result |= hex;
+        if(std.ascii.isAlpha(ascii)) ch_result |= alpha;
+    } else {
+        ch_result |= leadbyte;
+    }
+
+    const final_mask = ch_result & mask;
+    log("iswctype('0x{X}' ({c})) {b} & {b} = {b}", .{ chr, if(chr <= 0x7F) @intCast(u8, chr) else '!', mask, ch_result, final_mask});
+    return @boolToInt(final_mask != 0);
+}
+
 var rtl_global_heap = std.heap.GeneralPurposeAllocator(.{}){ .backing_allocator = std.heap.page_allocator };
 
 fn RtlAllocateHeap(heap_handle: ?*anyopaque, flags: rt.ULONG, size: rt.SIZE_T) callconv(.Win64) ?*anyopaque {
@@ -1647,7 +1680,7 @@ pub const builtin_symbols = blk: {
         .{ "NtUnmapViewOfSection", NtUnmapViewOfSection },
         .{ "NtDuplicateObject", NtDuplicateObject },
         .{ "NtQueryInformationJobObject", NtQueryInformationJobObject },
-        .{ "iswctype", stub("iswctype") },
+        .{ "iswctype", iswctype },
         .{ "RtlQueryEnvironmentVariable_U", stub("RtlQueryEnvironmentVariable_U") },
         .{ "RtlDosSearchPath_U", stub("RtlDosSearchPath_U") },
         .{ "RtlTestBit", stub("RtlTestBit") },
