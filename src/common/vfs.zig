@@ -1,6 +1,8 @@
 const std = @import("std");
 const rt = @import("rt.zig");
 
+const log = @import("log.zig").scoped(.vfs);
+
 pub var dirents: std.ArrayListUnmanaged(DirectoryEntry) = .{};
 var curr_free: i32 = -1;
 var dirents_mutex = std.Thread.Mutex{};
@@ -162,8 +164,8 @@ pub fn resolveSingleStep(current_dir: *i32, buf: *[]const u8, create: bool) !*Di
 
     if(create) {
         const name = try vfs_alloc.allocator().dupe(u8, split(buf, '\\'));
-        std.debug.print("-> Could not find it, creating new dirent with name '{s}'\n", .{name});
-        std.debug.print("  -> Remaining search string '{s}'\n", .{buf.*});
+        log("-> Could not find it, creating new dirent with name '{s}'", .{name});
+        log("  -> Remaining search string '{s}'", .{buf.*});
         const next = try allocIdx();
         dirent_tail.* = next;
         const result = deref(next);
@@ -180,7 +182,7 @@ pub fn resolveSingleStep(current_dir: *i32, buf: *[]const u8, create: bool) !*Di
 pub fn resolveInDir(current_dir_c: *i32, buffer: *[]const u8, create_deep: bool) !*DirectoryEntry {
     var current_dir = current_dir_c;
     while(true) {
-        std.debug.print("Resolving: '{s}'\n", .{buffer.*});
+        log("Resolving: '{s}'", .{buffer.*});
         const res = try resolveSingleStep(current_dir, buffer, create_deep);
         if(takeStr(buffer, "\\")) {
             current_dir = res.get(.dir) orelse @panic("wtf");
@@ -188,7 +190,7 @@ pub fn resolveInDir(current_dir_c: *i32, buffer: *[]const u8, create_deep: bool)
             continue;
         }
         if(buffer.len > 0) {
-            std.debug.print("Remaining: '{s}'\n", .{buffer.*});
+            log("Remaining: '{s}'", .{buffer.*});
             @panic("resolveInDir char not consumed");
         }
         return res;

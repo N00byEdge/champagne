@@ -6,6 +6,8 @@ const ntdll = @import("common/ntdll.zig");
 const rt = @import("common/rt.zig");
 const vfs = @import("common/vfs.zig");
 
+const log = @import("common/log.zig").scoped(.vfs);
+
 var gpa = std.heap.GeneralPurposeAllocator(.{}){
     .backing_allocator = std.heap.page_allocator,
 };
@@ -61,6 +63,6 @@ pub fn main() !void {
     try doVfsInit();
 
     const smss_entry = try PE.load(smss, gpa.allocator(), ResolveContext);
-    std.debug.print("Calling smss.exe entry @ 0x{X}\n", .{smss_entry});
+    log("Calling smss.exe entry @ 0x{X}", .{smss_entry});
     _ = rt.call_entry(smss_entry);
 }
