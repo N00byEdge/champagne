@@ -21,6 +21,7 @@ pub const TPWork = struct {
     env: Environment,
     context: Context,
     work: ?Work,
+    finish_sema: std.Thread.Semaphore = .{},
 };
 
 const WorkQueue = struct {
@@ -125,6 +126,7 @@ pub const ThreadPool = struct {
                     work.context,
                     work,
                 );
+                work.finish_sema.post();
             } else {
                 releaseWork(work);
                 return;

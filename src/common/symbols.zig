@@ -54,6 +54,7 @@ const symbols = .{
             .TpPostWork = ntdll.TpPostWork,
             .TpReleaseWork = ntdll.TpReleaseWork,
             .TpSetPoolMinThreads = ntdll.TpSetPoolMinThreads,
+            .TpWaitForWork = ntdll.TpWaitForWork,
         },
 
         .real = .{
@@ -1852,7 +1853,6 @@ const symbols = .{
             .RtlDeleteRegistryValue, // Nt
             .RtlRandomEx, // once
             .RtlWriteRegistryValue, // Nt
-            .TpWaitForWork,
         },
 
         .success_stubs = .{

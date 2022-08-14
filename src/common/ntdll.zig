@@ -145,6 +145,14 @@ pub fn TpPostWork(
     return .SUCCESS;
 }
 
+pub fn TpWaitForWork(
+    work_opt: ?*tp.TPWork,
+) callconv(.Win64) NTSTATUS {
+    log("TpWaitForWork(0x{X})", .{@ptrToInt(work_opt)});
+    (work_opt orelse return .INVALID_PARAMETER).finish_sema.wait();
+    return .SUCCESS;
+}
+
 pub fn TpReleaseWork(
     work_opt: ?*tp.TPWork,
 ) callconv(.Win64) NTSTATUS {
