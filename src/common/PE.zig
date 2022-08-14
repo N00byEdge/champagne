@@ -18,7 +18,8 @@ const IMAGE_DIRECTORY_ENTRY_IAT = 12; // Import address table
 const IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT = 13; // Delay import table
 const IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR = 14; // COM descriptor table
 
-pub fn load(file: std.fs.File, allocator: std.mem.Allocator, import_resolve_context: anytype) !usize {
+pub fn load(file: std.fs.File, allocator: std.mem.Allocator, comptime ResolveContext: type) !usize {
+    var resolve_context = ResolveContext{};
     var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
 
@@ -227,8 +228,11 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, import_resolve_cont
             const import_addr_table = @ptrCast([*]u64, @alignCast(8, &vmem[desc.import_addr_table_addr - min_addr]));
             for (import_name_table) |import_name_base, i| {
                 const import_name = std.mem.span(@ptrCast([*:0]u8, &vmem[import_name_base + 2 - min_addr]));
-                import_addr_table[i] =
-                    @ptrToInt(import_resolve_context.findSymbol(dll_name, import_name) orelse return error.UnresolvedImport);
+                const sym = resolve_context.resolve(dll_name, import_name) orelse {
+                    log("Unresolved import '{s}' from '{s}'", .{import_name, dll_name});
+                    return error.UnresolvedImport;
+                };
+                import_addr_table[i] = @ptrToInt(sym);
             }
         }
         log("Imports done", .{});
@@ -240,9 +244,23 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, import_resolve_cont
         if (exports_entry.size == 0)
             break :blk;
         const export_descriptor_bytes = vmem[exports_entry.virtual_address - min_addr ..][0..exports_entry.size];
-        // TODO: Exports
-        _ = export_descriptor_bytes;
-        @panic("TODO: Exports");
+
+        const num_functions = std.mem.readIntNative(u32, export_descriptor_bytes[0x14..0x18]);
+        const num_names = std.mem.readIntNative(u32, export_descriptor_bytes[0x18..0x1C]);
+        const addrs_base = std.mem.readIntNative(u32, export_descriptor_bytes[0x1C..0x20]);
+        const addrs = std.mem.bytesAsSlice(u32, vmem[addrs_base - min_addr..][0..num_functions*4]);
+        const names_base = std.mem.readIntNative(u32, export_descriptor_bytes[0x20..0x24]);
+        const names = std.mem.bytesAsSlice(u32, vmem[names_base - min_addr..][0..num_names*4]);
+        const ordinals_base = std.mem.readIntNative(u32, export_descriptor_bytes[0x24..0x28]);
+        const ordinals = std.mem.bytesAsSlice(u16, vmem[ordinals_base - min_addr..][0..num_names*2]);
+
+        // Literally who thought this was a good structure????
+        for(names) |name_rva, name_idx| {
+            const ordinal = ordinals[name_idx];
+            const name = std.mem.span(@ptrCast([*:0]u8, &vmem[name_rva - min_addr]));
+            const addr = @ptrCast(*anyopaque, &vmem[addrs[ordinal] - min_addr]);
+            resolve_context.provide("ntdll.dll", name, addr);
+        }
     }
 
     for (coff_file.sections.items) |s| {

@@ -164,8 +164,8 @@ pub fn resolveSingleStep(current_dir: *i32, buf: *[]const u8, create: bool) !*Di
 
     if(create) {
         const name = try vfs_alloc.allocator().dupe(u8, split(buf, '\\'));
-        log("-> Could not find it, creating new dirent with name '{s}'", .{name});
-        log("  -> Remaining search string '{s}'", .{buf.*});
+        //log("-> Could not find it, creating new dirent with name '{s}'", .{name});
+        //log("  -> Remaining search string '{s}'", .{buf.*});
         const next = try allocIdx();
         dirent_tail.* = next;
         const result = deref(next);
@@ -182,7 +182,7 @@ pub fn resolveSingleStep(current_dir: *i32, buf: *[]const u8, create: bool) !*Di
 pub fn resolveInDir(current_dir_c: *i32, buffer: *[]const u8, create_deep: bool) !*DirectoryEntry {
     var current_dir = current_dir_c;
     while(true) {
-        log("Resolving: '{s}'", .{buffer.*});
+        //log("Resolving: '{s}'", .{buffer.*});
         const res = try resolveSingleStep(current_dir, buffer, create_deep);
         if(takeStr(buffer, "\\")) {
             current_dir = res.get(.dir) orelse @panic("wtf");
