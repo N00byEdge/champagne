@@ -3,6 +3,7 @@ const symbols = .{
         .hooks = .{
             .EtwEventRegister = ntdll.EtwEventRegister,
             .EtwRegisterTraceGuidsW = ntdll.EtwRegisterTraceGuidsW,
+            .NtAllocateVirtualMemory = ntdll.NtAllocateVirtualMemory,
             .NtAlpcCreatePort = ntdll.NtAlpcCreatePort,
             .NtClose = ntdll.NtClose,
             .NtCreateDirectoryObject = ntdll.NtCreateDirectoryObject,
@@ -36,8 +37,6 @@ const symbols = .{
             .RtlCreateEnvironment = ntdll.RtlCreateEnvironment,
             .RtlCreateTagHeap = ntdll.RtlCreateTagHeap,
             .RtlFreeHeap = ntdll.RtlFreeHeap,
-            .RtlFreeSid = ntdll.RtlFreeSid,
-            .RtlGetAce = ntdll.RtlGetAce,
             .RtlGetNtSystemRoot = ntdll.RtlGetNtSystemRoot,
             .RtlInitializeConditionVariable = ntdll.RtlInitializeConditionVariable,
             .RtlWakeAllConditionVariable = ntdll.RtlWakeAllConditionVariable,
@@ -48,7 +47,6 @@ const symbols = .{
             .RtlReleaseSRWLockExclusive = ntdll.RtlReleaseSRWLockExclusive,
             .RtlReleaseSRWLockShared = ntdll.RtlReleaseSRWLockShared,
             .RtlSetHeapInformation = ntdll.RtlSetHeapInformation,
-            .RtlSetSaclSecurityDescriptor = ntdll.RtlSetSaclSecurityDescriptor,
             .RtlSetThreadIsCritical = ntdll.RtlSetThreadIsCritical,
             .RtlSleepConditionVariableSRW = ntdll.RtlSleepConditionVariableSRW,
             .TpAllocPool = ntdll.TpAllocPool,
@@ -106,6 +104,7 @@ const symbols = .{
             .RtlUnicodeStringToAnsiString,
             .RtlUnicodeStringToUTF8String,
             .RtlUpcaseUnicodeChar,
+            .RtlUTF8ToUnicodeN,
             .LdrVerifyImageMatchesChecksumEx, // Nt
             .__C_specific_handler,
             .__chkstk,
@@ -361,10 +360,19 @@ const symbols = .{
             .RtlDeleteAce,
             .RtlDeleteBoundaryDescriptor,
             .RtlDeleteSecurityObject,
+            .RtlFirstFreeAce,
+            .RtlFreeSid,
+            .RtlGetAce,
+            .RtlIsValidProcessTrustLabelSid,
             .RtlLengthSid,
             .RtlLengthSidAsUnicodeString,
             .RtlSetDaclSecurityDescriptor,
             .RtlSetOwnerSecurityDescriptor,
+            .RtlSetSaclSecurityDescriptor,
+            .RtlValidAcl,
+            .RtlValidRelativeSecurityDescriptor,
+            .RtlValidSecurityDescriptor,
+            .RtlValidSid,
 
             // PE (?)
             .RtlAddressInSectionTable,
@@ -402,7 +410,7 @@ const symbols = .{
             // .RtlCreateEnvironment, heap, critical sections and shit
             // .RtlCreateEnvironmentEx, -||-
             // .RtlCreateMemoryBlockLookaside, ??
-            // .RtlCreateMemoryZone, NtAllocateVirtualMemory
+            .RtlCreateMemoryZone,
             // .RtlCreateProcessParameters, heap
             // .RtlCreateProcessParametersEx,
             // .RtlCreateProcessParametersWithTemplate,
@@ -442,16 +450,17 @@ const symbols = .{
             .RtlDeleteHashTable,
 
             // Registry Nt
-            // .RtlApplyRXact,
-            // .RtlApplyRXactNoFlush,
-            // .RtlCapabilityCheck,
-            // .RtlCapabilityCheckForSingleSessionSku,
-            // .RtlCheckPortableOperatingSystem,
-            // .RtlCheckRegistryKey,
-            // .RtlCreateBootStatusDataFile,
-            // .RtlCreateRegistryKey, heap
+            .RtlApplyRXact,
+            .RtlApplyRXactNoFlush,
+            .RtlCapabilityCheck,
+            .RtlCapabilityCheckForSingleSessionSku,
+            .RtlCheckPortableOperatingSystem,
+            .RtlCheckRegistryKey,
+            .RtlCreateBootStatusDataFile,
+            .RtlCreateRegistryKey,
             .RtlWriteRegistryValue,
             .RtlAppxIsFileOwnedByTrustedInstaller,
+            .RtlQueryRegistryValuesEx,
 
             // .RtlCheckSandboxedToken, NtQueryInformationToken
             // .RtlCheckSystemBootStatusIntegrity, NtPowerInformation
@@ -526,10 +535,16 @@ const symbols = .{
             .RtlAcquirePrivilege,
             .RtlReleasePrivilege,
             .LdrQueryImageFileExecutionOptions,
+            .RtlDestroyProcessParameters,
 
             // Time
             .RtlSecondsSince1970ToTime,
             .RtlSecondsSince1980ToTime,
+            .RtlTimeFieldsToTime,
+            .RtlTimeToElapsedTimeFields,
+            .RtlTimeToSecondsSince1970,
+            .RtlTimeToSecondsSince1980,
+            .RtlTimeToTimeFields,
 
             // Exceptions
             .RtlLookupFunctionEntry,
@@ -560,7 +575,6 @@ const symbols = .{
             .RtlDestroyHeap,
             .RtlDestroyMemoryBlockLookaside,
             .RtlDestroyMemoryZone,
-            .RtlDestroyProcessParameters,
             .RtlDestroyQueryDebugBuffer,
             .RtlDetectHeapLeaks,
             .RtlDetermineDosPathNameType_U,
@@ -647,7 +661,6 @@ const symbols = .{
             .RtlFindSetBitsEx,
             .RtlFindUnicodeSubstring,
             .RtlFirstEntrySList,
-            .RtlFirstFreeAce,
             .RtlFlsAlloc,
             .RtlFlsFree,
             .RtlFlsGetValue,
@@ -665,14 +678,12 @@ const symbols = .{
             .RtlFreeMemoryBlockLookaside,
             .RtlFreeNonVolatileToken,
             .RtlFreeOemString,
-            .RtlFreeSid,
             .RtlFreeThreadActivationContextStack,
             .RtlFreeUTF8String,
             .RtlFreeUserFiberShadowStack,
             .RtlFreeUserStack,
             .RtlGUIDFromString,
             .RtlGenerate8dot3Name,
-            .RtlGetAce,
             .RtlGetActiveActivationContext,
             .RtlGetActiveConsoleId,
             .RtlGetAppContainerNamedObjectPath,
@@ -868,7 +879,6 @@ const symbols = .{
             .RtlIsValidHandle,
             .RtlIsValidIndexHandle,
             .RtlIsValidLocaleName,
-            .RtlIsValidProcessTrustLabelSid,
             .RtlIsZeroMemory,
             .RtlKnownExceptionFilter,
             .RtlLCIDToCultureName,
@@ -1047,7 +1057,6 @@ const symbols = .{
             .RtlSetControlSecurityDescriptor,
             .RtlSetCriticalSectionSpinCount,
             .RtlSetCurrentDirectory_U,
-            .RtlSetCurrentEnvironment,
             .RtlSetCurrentTransaction,
             .RtlSetDynamicTimeZoneInformation,
             .RtlSetEnvironmentStrings,
@@ -1070,7 +1079,6 @@ const symbols = .{
             .RtlSetProcessPreferredUILanguages,
             .RtlSetProtectedPolicy,
             .RtlSetProxiedProcessId,
-            .RtlSetSaclSecurityDescriptor,
             .RtlSetSearchPathMode,
             .RtlSetSecurityDescriptorRMControl,
             .RtlSetSecurityObject,
@@ -1118,11 +1126,6 @@ const symbols = .{
             .RtlTestBit,
             .RtlTestBitEx,
             .RtlTestProtectedAccess,
-            .RtlTimeFieldsToTime,
-            .RtlTimeToElapsedTimeFields,
-            .RtlTimeToSecondsSince1970,
-            .RtlTimeToSecondsSince1980,
-            .RtlTimeToTimeFields,
             .RtlTraceDatabaseAdd,
             .RtlTraceDatabaseCreate,
             .RtlTraceDatabaseDestroy,
@@ -1137,7 +1140,6 @@ const symbols = .{
             .RtlTryConvertSRWLockSharedToExclusiveOrRelease,
             .RtlTryEnterCriticalSection,
             .RtlUTF8StringToUnicodeString,
-            .RtlUTF8ToUnicodeN,
             .RtlUdiv128,
             .RtlUmsThreadYield,
             .RtlUnicodeStringToCountedOemString,
@@ -1177,11 +1179,7 @@ const symbols = .{
             .RtlUpperString,
             .RtlUserFiberStart,
             .RtlUserThreadStart,
-            .RtlValidAcl,
             .RtlValidProcessProtection,
-            .RtlValidRelativeSecurityDescriptor,
-            .RtlValidSecurityDescriptor,
-            .RtlValidSid,
             .RtlValidateCorrelationVector,
             .RtlValidateHeap,
             .RtlValidateProcessHeaps,
@@ -1409,7 +1407,6 @@ const symbols = .{
             .NtAllocateUserPhysicalPages,
             .NtAllocateUserPhysicalPagesEx,
             .NtAllocateUuids,
-            .NtAllocateVirtualMemory,
             .NtAllocateVirtualMemoryEx,
             .NtAlpcAcceptConnectPort,
             .NtAlpcCancelMessage,
@@ -1837,7 +1834,6 @@ const symbols = .{
 
             .EtwEventWrite, // Nt calls
             .EtwEventEnabled, // Nt calls
-            .RtlSetCurrentEnvironment, // heap
             .RtlQueryRegistryValuesEx,
             
             .RtlSetEnvironmentVariable,
@@ -1845,12 +1841,11 @@ const symbols = .{
             .RtlDosSearchPath_U,
             .RtlInterlockedSetBitRun,
             .RtlCreateProcessParametersEx,
-            .RtlDestroyProcessParameters,
-            .RtlTimeToTimeFields,
         },
 
         .success_stubs = .{
             .RtlDeleteRegistryValue,
+            .RtlSetCurrentEnvironment,
         },
     },
 };

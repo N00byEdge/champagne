@@ -358,6 +358,11 @@ pub fn NtQuerySystemInformation(
 const ConditionVariable = std.Thread.Condition;
 const Mutex = std.Thread.Mutex;
 
+comptime {
+    std.debug.assert(@sizeOf(Mutex) <= 8);
+    std.debug.assert(@sizeOf(ConditionVariable) <= 8);
+}
+
 pub fn RtlInitializeSRWLock(
     lock: ?*Mutex,
 ) callconv(.Win64) void {
@@ -462,120 +467,9 @@ pub fn NtTerminateProcess(
     std.os.exit(0);
 }
 
-pub fn RtlSetDaclSecurityDescriptor(
-    security_descriptor: ?*SecurityDescriptor,
-    dacl_present: rt.BOOL,
-    dacl: ?*AccessControlList,
-    dacl_defaulted: rt.BOOL,
-) callconv(.Win64) NTSTATUS {
-    _ = dacl_present;
-    _ = dacl_defaulted;
-    log("RtlSetDaclSecurityDescriptor()", .{});
-    const desc = security_descriptor orelse return .INVALID_PARAMETER;
-    desc.dacl = dacl;
-    return .SUCCESS;
-}
-
-var sid_allocator = std.heap.GeneralPurposeAllocator(.{}){ .backing_allocator = std.heap.page_allocator };
-
-pub fn RtlAllocateAndInitializeSid(
-    sid_auth: ?*SecurityIdentifierAuthority,
-    sub_count: u8,
-    sub_authority0: rt.ULONG,
-    sub_authority1: rt.ULONG,
-    sub_authority2: rt.ULONG,
-    sub_authority3: rt.ULONG,
-    sub_authority4: rt.ULONG,
-    sub_authority5: rt.ULONG,
-    sub_authority6: rt.ULONG,
-    sub_authority7: rt.ULONG,
-    opt_sid: ?*?[*]u8, // Actually ?*?*SecurityIdentifier
-) callconv(.Win64) NTSTATUS {
-    const sid = opt_sid orelse return .INVALID_PARAMETER;
-    const auth = sid_auth orelse return .INVALID_PARAMETER;
-    const result_sid = SecurityIdentifier{
-        .revision = 0,
-        .sub_authority_count = sub_count,
-        .identifier_authority = auth.*,
-        .sub_authorities = .{
-            if (sub_count >= 1) sub_authority0 else undefined,
-            if (sub_count >= 2) sub_authority1 else undefined,
-            if (sub_count >= 3) sub_authority2 else undefined,
-            if (sub_count >= 4) sub_authority3 else undefined,
-            if (sub_count >= 5) sub_authority4 else undefined,
-            if (sub_count >= 6) sub_authority5 else undefined,
-            if (sub_count >= 7) sub_authority6 else undefined,
-            if (sub_count >= 8) sub_authority7 else undefined,
-        },
-    };
-    sid.* = (sid_allocator.allocator().dupe(u8, std.mem.toBytes(result_sid)[0..result_sid.size()]) catch return .NO_MEMORY).ptr;
-    log("RtlAllocateAndInitializeSid({})", .{result_sid});
-    return .SUCCESS;
-}
-
 pub fn RtlNormalizeProcessParams(
 ) callconv(.Win64) NTSTATUS {
     log("RtlNormalizeProcessParams: Nothing to do under champagne", .{});
-    return .SUCCESS;
-}
-
-pub fn RtlFreeSid(
-    opt_sid: ?*SecurityIdentifier,
-) callconv(.Win64) NTSTATUS {
-    log("RtlFreeSid({})", .{opt_sid});
-    const sid = opt_sid orelse return .INVALID_PARAMETER;
-    sid_allocator.allocator().free(@ptrCast([*]u8, sid)[0..sid.size()]);
-    return .SUCCESS;
-}
-
-pub fn RtlLengthSid(
-    opt_sid: ?*SecurityIdentifier,
-) callconv(.Win64) rt.ULONG {
-    log("RtlLengthSid({})", .{opt_sid});
-    const sid = opt_sid.?;
-    return sid.size();
-}
-
-pub fn RtlGetAce(
-    opt_acl: ?*AccessControlList,
-    index: rt.ULONG,
-    opt_acle: ?**AccessControlListEntry,
-) callconv(.Win64) NTSTATUS {
-    log("RtlGetAce(0x{X}, {d})", .{ @ptrToInt(opt_acl), index });
-    const acl = opt_acl orelse return .INVALID_PARAMETER;
-    const acle = opt_acle orelse return .INVALID_PARAMETER;
-    if (index >= acl.ace_count) return .INVALID_PARAMETER;
-
-    var bytes = @ptrCast([*]u8, acl)[@sizeOf(AccessControlList)..acl.acl_size];
-    var current_index: usize = 0;
-
-    while (true) : (current_index += 1) {
-        const current_acle = @ptrCast(*AccessControlListEntry, @alignCast(@alignOf(AccessControlListEntry), bytes.ptr));
-        //log("RtlGetAce: index {} acle {}", .{current_index, current_acle});
-
-        if (index == current_index) {
-            // This is the one!
-            acle.* = current_acle;
-            return .SUCCESS;
-        }
-
-        bytes = bytes[current_acle.size()..];
-    }
-
-    unreachable;
-}
-
-pub fn RtlSetSaclSecurityDescriptor(
-    desc: ?*SecurityDescriptor,
-    sacl_present: rt.BOOL,
-    sacl: ?*AccessControlList,
-    sacl_defaulted: rt.BOOL,
-) callconv(.Win64) NTSTATUS {
-    _ = desc;
-    _ = sacl_present;
-    _ = sacl;
-    _ = sacl_defaulted;
-    log("RtlSetSaclSecurityDescriptor()", .{});
     return .SUCCESS;
 }
 
@@ -757,6 +651,41 @@ pub fn NtCreateSection(
 var section_view_map: std.AutoHashMapUnmanaged(usize, usize) = .{};
 var section_view_alloc = std.heap.GeneralPurposeAllocator(.{}){ .backing_allocator = std.heap.page_allocator };
 
+pub fn NtAllocateVirtualMemory(
+    process_handle: rt.HANDLE,
+    base_addr: *usize,
+    zero_bits: usize,
+    region_size: *usize,
+    allocation_type: rt.ULONG,
+    protection: rt.ULONG,
+) callconv(.Win64) NTSTATUS {
+    _ = process_handle;
+    _ = allocation_type;
+    _ = protection;
+    log("NtAllocateVirtualMemory(baddr=0x{X}, zero_bits={d}, region_size=0x{X})", .{
+        base_addr.*,
+        zero_bits,
+        region_size.*,
+    });
+    std.debug.assert(zero_bits == 0);
+
+    base_addr.* = rt.alignPageUp(base_addr.*);
+
+    const result = std.os.mmap(
+        @intToPtr(?[*]align(0x1000) u8, base_addr.*),
+        region_size.*,
+        std.os.PROT.READ | std.os.PROT.WRITE,
+        std.os.MAP.ANONYMOUS | std.os.MAP.PRIVATE,
+        -1,
+        0,
+    ) catch return .NO_MEMORY;
+
+    region_size.* = result.len;
+    base_addr.* = @ptrToInt(result.ptr);
+
+    return .SUCCESS;
+}
+
 pub fn NtMapViewOfSection(
     section_handle: rt.HANDLE,
     process_handle: rt.HANDLE,
@@ -777,7 +706,7 @@ pub fn NtMapViewOfSection(
     const fd = @truncate(u32, section_handle);
     const view_size_value = rt.alignPageUp(@truncate(u32, section_handle >> 32));
 
-    log("STUB: NtMapViewOfSection(fd=0x{X}, base=0x{X}, size=0x{X}, offset=0x{X})", .{
+    log("NtMapViewOfSection(fd=0x{X}, base=0x{X}, size=0x{X}, offset=0x{X})", .{
         fd,
         @ptrToInt(base_addr.*),
         view_size_value,
