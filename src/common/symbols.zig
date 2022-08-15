@@ -100,7 +100,12 @@ const symbols = .{
             .RtlPrefixString,
             .RtlPrefixUnicodeString,
             .RtlUnicodeStringToInteger,
+            .RtlUnicodeStringToAnsiSize,
+            .RtlUnicodeStringToAnsiString,
+            .RtlUnicodeStringToUTF8String,
             .RtlUpcaseUnicodeChar,
+            .LdrVerifyImageMatchesChecksumEx, // Nt
+            .__C_specific_handler,
             .__chkstk,
             .__isascii,
             .__iscsym,
@@ -381,7 +386,6 @@ const symbols = .{
             .RtlCompareAltitudes,
             // .RtlCompleteProcessCloning,
             .RtlCompressBuffer,
-            // .RtlConnectToSm, Nt
             // .RtlConstructCrossVmEventPath, heap
             // .RtlConstructCrossVmMutexPath,
             // .RtlContractHashTable, heap
@@ -423,6 +427,8 @@ const symbols = .{
             // .RtlDeleteUmsThreadContext, heap
             // .RtlDequeueUmsCompletionListItems, NtWaitForSingleObject
             // .RtlDeregisterSecureMemoryCacheCallback, heap and lock
+            .RtlConnectToSm,
+            .RtlSendMsgToSm,
 
             // Splay trees
             .RtlDelete,
@@ -442,7 +448,8 @@ const symbols = .{
             // .RtlCheckRegistryKey,
             // .RtlCreateBootStatusDataFile,
             // .RtlCreateRegistryKey, heap
-            // .RtlDeleteRegistryValue, heap
+            .RtlWriteRegistryValue,
+            .RtlAppxIsFileOwnedByTrustedInstaller,
 
             // .RtlCheckSandboxedToken, NtQueryInformationToken
             // .RtlCheckSystemBootStatusIntegrity, NtPowerInformation
@@ -500,6 +507,7 @@ const symbols = .{
             // .RtlDeleteTimer,
             // .RtlDeleteTimerQueue,
             // .RtlDeleteTimerQueueEx,
+            .RtlRandomEx, // This uses once so may die if contended
 
             // Stack memes
             .RtlCaptureContext,
@@ -513,10 +521,24 @@ const symbols = .{
             // .RtlCreateUserFiberShadowStack, // AAAA
             // .RtlCreateUserStack, // AAAA
             // .RtlCreateUserThread,
+            .RtlAcquirePrivilege,
+            .RtlReleasePrivilege,
+            .LdrQueryImageFileExecutionOptions,
 
             // Time
             .RtlSecondsSince1970ToTime,
             .RtlSecondsSince1980ToTime,
+
+            // Exceptions
+            .RtlLookupFunctionEntry,
+            .RtlUnhandledExceptionFilter,
+            .RtlUnhandledExceptionFilter2,
+            .RtlVirtualUnwind,
+
+            // Tracing
+            .EtwGetTraceLoggerHandle,
+            .EtwGetTraceEnableLevel,
+            .EtwGetTraceEnableFlags,
         },
 
         .kill = .{
@@ -962,7 +984,6 @@ const symbols = .{
             .RtlRaiseNoncontinuableException,
             .RtlRaiseStatus,
             .RtlRandom,
-            .RtlRandomEx,
             .RtlRbInsertNodeEx,
             .RtlRbRemoveNode,
             .RtlReAllocateHeap,
@@ -1016,7 +1037,6 @@ const symbols = .{
             .RtlSeekMemoryStream,
             .RtlSelfRelativeToAbsoluteSD,
             .RtlSelfRelativeToAbsoluteSD2,
-            .RtlSendMsgToSm,
             .RtlSetAttributesSecurityDescriptor,
             .RtlSetControlSecurityDescriptor,
             .RtlSetCriticalSectionSpinCount,
@@ -1114,14 +1134,9 @@ const symbols = .{
             .RtlUTF8ToUnicodeN,
             .RtlUdiv128,
             .RtlUmsThreadYield,
-            .RtlUnhandledExceptionFilter,
-            .RtlUnhandledExceptionFilter2,
-            .RtlUnicodeStringToAnsiSize,
-            .RtlUnicodeStringToAnsiString,
             .RtlUnicodeStringToCountedOemString,
             .RtlUnicodeStringToOemSize,
             .RtlUnicodeStringToOemString,
-            .RtlUnicodeStringToUTF8String,
             .RtlUnicodeToCustomCPN,
             .RtlUnicodeToMultiByteN,
             .RtlUnicodeToMultiByteSize,
@@ -1204,7 +1219,6 @@ const symbols = .{
             .RtlWow64SuspendThread,
             .RtlWriteMemoryStream,
             .RtlWriteNonVolatileMemory,
-            .RtlWriteRegistryValue,
             .RtlZeroHeap,
             .RtlZeroMemory,
             .RtlZombifyActivationContext,
@@ -1267,7 +1281,6 @@ const symbols = .{
             .ShipAssertGetBufferInfo,
             .ShipAssertMsgA,
             .ShipAssertMsgW,
-            .TpAllocAlpcCompletion,
             .TpAllocAlpcCompletionEx,
             .TpAllocCleanupGroup,
             .TpAllocIoCompletion,
@@ -1363,7 +1376,6 @@ const symbols = .{
             .WinSqmStartSession,
             .WinSqmStartSessionForPartner,
             .WinSqmStartSqmOptinListener,
-            .__C_specific_handler,
             .longjmp,
             .vDbgPrintEx,
             .vDbgPrintExWithPrefix,
@@ -1834,29 +1846,11 @@ const symbols = .{
             .AlpcInitializeMessageAttribute,
             .AlpcGetMessageAttribute,
             .RtlWakeAllConditionVariable,
-            .EtwGetTraceLoggerHandle,
-            .EtwGetTraceEnableLevel,
-            .EtwGetTraceEnableFlags,
-            .TpAllocAlpcCompletion,
-            .RtlUnicodeStringToAnsiString,
-            .LdrQueryImageFileExecutionOptions,
-            .RtlAcquirePrivilege,
-            .RtlReleasePrivilege,
-            .RtlLookupFunctionEntry,
-            .RtlVirtualUnwind,
-            .RtlUnhandledExceptionFilter,
-            .RtlConnectToSm,
-            .RtlSendMsgToSm,
-            .__C_specific_handler,
-            .LdrVerifyImageMatchesChecksumEx, // Nt
-            .RtlAppxIsFileOwnedByTrustedInstaller, // heap and Nt
-            .RtlDeleteRegistryValue, // Nt
-            .RtlRandomEx, // once
-            .RtlWriteRegistryValue, // Nt
         },
 
         .success_stubs = .{
-            
+            .RtlDeleteRegistryValue,
+            .TpAllocAlpcCompletion,
         },
     },
 };
