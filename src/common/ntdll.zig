@@ -683,6 +683,8 @@ pub fn NtAllocateVirtualMemory(
     region_size.* = result.len;
     base_addr.* = @ptrToInt(result.ptr);
 
+    log("NtAllocateVirtualMemory -> 0x{}", .{base_addr.*});
+
     return .SUCCESS;
 }
 
