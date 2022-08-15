@@ -1908,6 +1908,23 @@ fn RealAddrHolder(comptime symname: []const u8) type {
     return struct { var value: ?*const anyopaque = null; };
 }
 
+fn KillStub(comptime symname: []const u8) type {
+    return struct {
+        fn f() callconv(.Win64) ntdll.NTSTATUS {
+            @panic("Reached kill function " ++ symname);
+        }
+    };
+}
+
+fn SuccessStub(comptime symname: []const u8) type {
+    return struct {
+        fn f() callconv(.Win64) ntdll.NTSTATUS {
+            log("WARNING: STUB: " ++ symname, .{});
+            return .SUCCESS;
+        }
+    };
+}
+
 pub const ResolveContext = struct {
     const ResolveResult = union(enum) {
         unknown_dll,
@@ -1932,32 +1949,27 @@ pub const ResolveContext = struct {
                 @setEvalBranchQuota(5 * dll_value.real.len);
                 inline for(dll_value.real) |real_sym| {
                     if(std.mem.eql(u8, @tagName(real_sym), symbol_name)) {
-                        return .{ .real = &RealAddrHolder(@tagName(real_sym)).value };
+                        return .{
+                            .real = &RealAddrHolder(@tagName(real_sym)).value
+                        };
                     }
                 }
 
                 @setEvalBranchQuota(5 * dll_value.kill.len);
                 inline for(dll_value.kill) |kill_sym| {
                     if(std.mem.eql(u8, @tagName(kill_sym), symbol_name)) {
-                        const Stub = struct {
-                            fn f() callconv(.Win64) ntdll.NTSTATUS {
-                                @panic("Reached kill function " ++ @tagName(kill_sym));
-                            }
+                        return .{
+                            .hook = @ptrCast(*const anyopaque, KillStub(@tagName(kill_sym)).f)
                         };
-                        return .{ .hook = @ptrCast(*const anyopaque, Stub.f) };
                     }
                 }
 
                 @setEvalBranchQuota(5 * dll_value.success_stubs.len);
                 inline for(dll_value.success_stubs) |stub_sym| {
                     if(std.mem.eql(u8, @tagName(stub_sym), symbol_name)) {
-                        const Stub = struct {
-                            fn f() callconv(.Win64) ntdll.NTSTATUS {
-                                log("WARNING: STUB: " ++ @tagName(stub_sym), .{});
-                                return .SUCCESS;
-                            }
+                        return .{
+                            .hook = @ptrCast(*const anyopaque, SuccessStub(@tagName(stub_sym)).f)
                         };
-                        return .{ .hook = @ptrCast(*const anyopaque, Stub.f) };
                     }
                 }
 
