@@ -386,6 +386,13 @@ pub fn RtlAcquireSRWLockShared(
     lock.?.lock();
 }
 
+pub fn RtlReleaseSRWLockShared(
+    lock: ?*Mutex,
+) callconv(.Win64) void {
+    log("RtlReleaseSRWLockShared(0x{X})", .{@ptrToInt(lock)});
+    lock.?.unlock();
+}
+
 pub fn RtlInitializeConditionVariable(
     out_cvar: ?*ConditionVariable,
 ) callconv(.Win64) void {
@@ -406,6 +413,13 @@ pub fn RtlSleepConditionVariableSRW(
     } else {
         condvar.?.timedWait(lock.?, @intCast(usize, timeout)) catch return .INVALID_PARAMETER;
     }
+    return .SUCCESS;
+}
+
+pub fn RtlWakeAllConditionVariable(
+    condvar: ?*ConditionVariable,
+) callconv(.Win64) NTSTATUS {
+    (condvar orelse return .INVALID_PARAMETER).broadcast();
     return .SUCCESS;
 }
 

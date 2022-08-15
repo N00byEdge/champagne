@@ -40,11 +40,13 @@ const symbols = .{
             .RtlGetAce = ntdll.RtlGetAce,
             .RtlGetNtSystemRoot = ntdll.RtlGetNtSystemRoot,
             .RtlInitializeConditionVariable = ntdll.RtlInitializeConditionVariable,
+            .RtlWakeAllConditionVariable = ntdll.RtlWakeAllConditionVariable,
             .RtlInitializeSRWLock = ntdll.RtlInitializeSRWLock,
             .RtlInitUnicodeString = ntdll.RtlInitUnicodeString,
             .RtlInitUnicodeStringEx = ntdll.RtlInitUnicodeStringEx,
             .RtlNormalizeProcessParams = ntdll.RtlNormalizeProcessParams,
             .RtlReleaseSRWLockExclusive = ntdll.RtlReleaseSRWLockExclusive,
+            .RtlReleaseSRWLockShared = ntdll.RtlReleaseSRWLockShared,
             .RtlSetHeapInformation = ntdll.RtlSetHeapInformation,
             .RtlSetSaclSecurityDescriptor = ntdll.RtlSetSaclSecurityDescriptor,
             .RtlSetThreadIsCritical = ntdll.RtlSetThreadIsCritical,
@@ -539,6 +541,11 @@ const symbols = .{
             .EtwGetTraceLoggerHandle,
             .EtwGetTraceEnableLevel,
             .EtwGetTraceEnableFlags,
+
+            // ALPC
+            .AlpcGetMessageAttribute,
+            .AlpcInitializeMessageAttribute,
+            .TpAllocAlpcCompletion,
         },
 
         .kill = .{
@@ -1005,7 +1012,6 @@ const symbols = .{
             .RtlReleaseRelativeName,
             .RtlReleaseResource,
             .RtlReleaseSRWLockExclusive,
-            .RtlReleaseSRWLockShared,
             .RtlRemoteCall,
             .RtlRemoveEntryHashTable,
             .RtlRemovePrivileges,
@@ -1188,7 +1194,6 @@ const symbols = .{
             .RtlWakeAddressAllNoFence,
             .RtlWakeAddressSingle,
             .RtlWakeAddressSingleNoFence,
-            .RtlWakeAllConditionVariable,
             .RtlWakeConditionVariable,
             .RtlWalkFrameChain,
             .RtlWalkHeap,
@@ -1842,15 +1847,10 @@ const symbols = .{
             .RtlCreateProcessParametersEx,
             .RtlDestroyProcessParameters,
             .RtlTimeToTimeFields,
-            .RtlReleaseSRWLockShared,
-            .AlpcInitializeMessageAttribute,
-            .AlpcGetMessageAttribute,
-            .RtlWakeAllConditionVariable,
         },
 
         .success_stubs = .{
             .RtlDeleteRegistryValue,
-            .TpAllocAlpcCompletion,
         },
     },
 };
