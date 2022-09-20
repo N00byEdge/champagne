@@ -17,13 +17,6 @@ pub fn build(b: *std.build.Builder) void {
     exe.install();
 
     exe.want_lto = false;
-    exe.addCSourceFiles(&.{
-        "src/common/rt.c",
-    }, &.{
-        "-fms-compatibility",
-        "-fno-builtin",
-        "-target", "x86_64-windows-elf",
-    });
 
     const run_cmd = exe.run();
     run_cmd.step.dependOn(b.getInstallStep());

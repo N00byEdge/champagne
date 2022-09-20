@@ -26,40 +26,7 @@ pub fn log(
     //log_lib.scoped(scope)(@tagName(level) ++ ": " ++ fmt, args);
 }
 
-var _vsnwprintf_s: ?*const anyopaque = null;
-
 const ResolveContext = @import("common/symbols.zig").ResolveContext;
-// const ResolveContext = struct {
-//     fn isBuiltinModuleName(module_name: []const u8) bool {
-//         if (std.mem.eql(u8, module_name, "ntdll.dll")) {
-//             return true;
-//         }
-//         return false;
-//     }
-
-//     fn resolveBuiltinSymbol(symbol_name: []const u8) ?*const anyopaque {
-//         if (std.mem.eql(u8, symbol_name, "_vsnwprintf_s")) {
-//             // return @extern(*const anyopaque, .{ .name = "_vsnwprintf_s", .linkage = .Strong });
-//             return _vsnwprintf_s.?;
-//         }
-//         return ntdll.builtin_symbols.get(symbol_name);
-//     }
-
-//     pub fn findSymbol(module_name: []const u8, symbol_name: []const u8) ?*const anyopaque {
-//         if (isBuiltinModuleName(module_name)) {
-//             return resolveBuiltinSymbol(symbol_name);
-//         }
-//         return null;
-//     }
-
-//     pub fn provide(name: ?[]const u8, ordinal: ?u16, addr: *const anyopaque) void {
-//         _ = ordinal;
-//         if(name) |n| {
-//             if(std.mem.eql(u8, n, "_vsnwprintf_s"))
-//                 _vsnwprintf_s = addr;
-//         }
-//     }
-// };
 
 var smss_path = rt.toNullTerminatedUTF16Buffer("C:\\Windows\\system32\\smss.exe");
 var smss_command_line = rt.toNullTerminatedUTF16Buffer("C:\\Windows\\system32\\smss.exe");
