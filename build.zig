@@ -13,7 +13,7 @@ pub fn build(b: *std.build.Builder) void {
 
     const exe = b.addExecutable("launcher", "src/launcher.zig");
     exe.setTarget(target);
-    exe.setBuildMode(.Debug);
+    exe.setBuildMode(mode);
     exe.install();
 
     exe.want_lto = false;
