@@ -57,7 +57,7 @@ pub fn EtwEventRegister(
     callback_context: rt.PVOID,
     result_handle: ?*REGHANDLE,
 ) callconv(.Win64) Error {
-    log("EtwEventRegister(guid={}, callback=0x{X}, context=0x{x}, result_out=0x{X})", .{ provider_id, @ptrToInt(callback), @ptrToInt(callback_context), @ptrToInt(result_handle) });
+    log("EtwEventRegister(guid={any}, callback=0x{X}, context=0x{x}, result_out=0x{X})", .{ provider_id, @ptrToInt(callback), @ptrToInt(callback_context), @ptrToInt(result_handle) });
     return .SUCCESS;
 }
 
@@ -74,7 +74,7 @@ const WmidPRequestCode = enum(u32) {
     ExecuteMethod = 9,
 };
 
-const WMidPRequest = fn (
+const WMidPRequest = *const fn (
     request_code: WmidPRequestCode,
     request_context: rt.PVOID,
     buffer_size: ?*rt.ULONG,
@@ -98,7 +98,7 @@ pub fn EtwRegisterTraceGuidsW(
     m_of_resource_name: rt.LPCWSTR,
     registration_handle: ?*TraceHandle,
 ) callconv(.Win64) Error {
-    log("EtwRegisterTraceGuidsW(req_addr=0x{X}, req_cont=0x{X}, cguid={}, guidcnt={}, tguid={}, imgp={}, mrname={}, rhandle=0x{X})", .{
+    log("EtwRegisterTraceGuidsW(req_addr=0x{X}, req_cont=0x{X}, cguid={any}, guidcnt={}, tguid={any}, imgp={}, mrname={}, rhandle=0x{X})", .{
         @ptrToInt(request_address),
         @ptrToInt(request_context),
         control_guid,
@@ -210,7 +210,7 @@ pub fn NtQueryInformationJobObject(
     len: rt.ULONG,
     ret_len: ?*rt.ULONG,
 ) callconv(.Win64) NTSTATUS {
-    log("NtQueryInformationJobObject(handle=0x{X}, class={s}, len=0x{x}, ret_len={d})", .{ handle, @tagName(class), len, ret_len });
+    log("NtQueryInformationJobObject(handle=0x{X}, class={s}, len=0x{x}, ret_len={any})", .{ handle, @tagName(class), len, ret_len });
     return .SUCCESS;
 }
 
@@ -281,7 +281,7 @@ fn giveSystemInfo(ret_ptr: rt.PVOID, ret_max_size: rt.ULONG, ret_out_size: ?*rt.
     }
 }
 
-var manufacturer_profile_name = rt.toNullTerminatedUTF16Buffer("Champagne-SYSTEM");
+var manufacturer_profile_name = std.unicode.utf8ToUtf16LeStringLiteral("Champagne-SYSTEM").*;
 
 pub fn NtQuerySystemInformation(
     class: SystemInformationClass,
@@ -289,9 +289,6 @@ pub fn NtQuerySystemInformation(
     ret_max_size: rt.ULONG,
     ret_out_size: ?*rt.ULONG,
 ) callconv(.Win64) NTSTATUS {
-    _ = ret_ptr;
-    _ = ret_max_size;
-    _ = ret_out_size;
     log("NtQuerySystemInformation(class=0x{X})", .{@enumToInt(class)});
     log("NtQuerySystemInformation(class=0x{X} ('{s}'), max_size=0x{X})", .{ @enumToInt(class), @tagName(class), ret_max_size });
     return switch (class) {
@@ -478,8 +475,7 @@ pub fn NtAlpcCreatePort(
     opt_object_attributes: ?*ObjectAttributes,
     opt_port_attributes: rt.PVOID, // ?*PortAttributes,
 ) callconv(.Win64) NTSTATUS {
-    log("STUB: NtAlpcCreatePort({})", .{opt_object_attributes});
-    _ = opt_object_attributes;
+    log("STUB: NtAlpcCreatePort({any})", .{opt_object_attributes});
     _ = opt_port_attributes;
     const port_handle = opt_port_handle orelse return .INVALID_PARAMETER;
     _ = port_handle;
@@ -491,7 +487,7 @@ pub fn NtOpenDirectoryObject(
     desired_access: AccessMask,
     opt_object_attributes: ?*ObjectAttributes,
 ) callconv(.Win64) NTSTATUS {
-    log("NtOpenDirectoryObject({})", .{opt_object_attributes});
+    log("NtOpenDirectoryObject({any})", .{opt_object_attributes});
     const n = resovleAttrs(opt_object_attributes, true) orelse return .INVALID_PARAMETER;
     defer vfs.close(n);
     if(opt_dir_handle) |handle_out| {
@@ -525,7 +521,7 @@ pub fn NtOpenKey(
     desired_access: AccessMask,
     opt_object_attributes: ?*ObjectAttributes,
 ) callconv(.Win64) NTSTATUS {
-    log("STUB: NtOpenKey({})", .{opt_object_attributes});
+    log("STUB: NtOpenKey({any})", .{opt_object_attributes});
     const n = resovleAttrs(opt_object_attributes, true) orelse return .INVALID_PARAMETER;
     defer vfs.close(n);
     _ = n.get(.dir);
@@ -545,7 +541,7 @@ pub fn NtCreateKey(
     create_options: rt.ULONG,
     disposition: ?*rt.ULONG,
 ) callconv(.Win64) NTSTATUS {
-    log("STUB: NtCreateKey({})", .{opt_object_attributes});
+    log("STUB: NtCreateKey({any})", .{opt_object_attributes});
     const n = resovleAttrs(opt_object_attributes, true) orelse return .INVALID_PARAMETER;
     defer vfs.close(n);
     _ = n.get(.dir);
@@ -565,7 +561,7 @@ pub fn NtCreateDirectoryObject(
     desired_access: AccessMask,
     opt_object_attributes: ?*ObjectAttributes,
 ) callconv(.Win64) NTSTATUS {
-    log("STUB: NtCreateDirectoryObject({})", .{opt_object_attributes});
+    log("STUB: NtCreateDirectoryObject({any})", .{opt_object_attributes});
     const n = resovleAttrs(opt_object_attributes, true) orelse return .INVALID_PARAMETER;
     defer vfs.close(n);
     _ = n.get(.dir);
@@ -591,7 +587,7 @@ pub fn NtCreateFile(
 ) callconv(.Win64) NTSTATUS {
     _ = opt_handle;
     _ = desired_access;
-    log("STUB: NtCreateFile({})", .{opt_object_attributes});
+    log("STUB: NtCreateFile({any})", .{opt_object_attributes});
     _ = io_status_block;
     _ = allocation_size;
     _ = file_attrs;
@@ -613,7 +609,7 @@ pub fn NtOpenFile(
 ) callconv(.Win64) NTSTATUS {
     _ = opt_handle;
     _ = desired_access;
-    log("STUB: NtOpenFile({})", .{opt_object_attributes});
+    log("STUB: NtOpenFile({any})", .{opt_object_attributes});
     _ = io_status_block;
     _ = share_access;
     _ = open_options;
@@ -633,8 +629,7 @@ pub fn NtCreateSection(
     _ = desired_access;
     _ = section_page_protection;
     _ = allocation_attributes;
-    _ = opt_handle;
-    log("STUB: NtCreateSection({}, 0x{X}, 0x{X})", .{opt_object_attributes, file_handle, size});
+    log("STUB: NtCreateSection({any}, 0x{X}, 0x{X})", .{opt_object_attributes, file_handle, size});
     std.debug.assert(opt_object_attributes == null or opt_object_attributes.?.name == null);
     std.debug.assert(file_handle == 0);
     if(opt_handle) |h| {
@@ -771,10 +766,8 @@ pub fn NtDeleteValueKey(
     key_handle: rt.HANDLE,
     value_name: ?*rt.UnicodeString,
 ) callconv(.Win64) NTSTATUS {
-    _ = value_name;
-    log("STUB: NtDeleteValueKey(0x{X}, {})", .{key_handle, value_name});
-    _ = key_handle;
-    return .SUCCESS;   
+    log("STUB: NtDeleteValueKey(0x{X}, {any})", .{key_handle, value_name});
+    return .SUCCESS;
 }
 
 pub fn NtSetValueKey(
@@ -785,7 +778,7 @@ pub fn NtSetValueKey(
     data: rt.PVOID,
     data_size: rt.ULONG,
 ) callconv(.Win64) NTSTATUS {
-    log("STUB: NtSetValueKey(0x{X}, {}, {s})", .{key_handle, value_name_opt, @tagName(kind)});
+    log("STUB: NtSetValueKey(0x{X}, {any}, {s})", .{key_handle, value_name_opt, @tagName(kind)});
     const key = vfs.openHandle(key_handle);
     defer vfs.close(key);
     const dir = key.get(.dir) orelse return .INVALID_PARAMETER;
@@ -807,9 +800,6 @@ pub fn NtSetValueKey(
         },
         else => @panic("Bad key type!"),
     }
-    _ = value;
-    _ = data_size;
-    _ = data;
     _ = index;
     return .SUCCESS;
 }
@@ -825,7 +815,7 @@ pub fn NtQueryValueKey(
     _ = info;
     _ = info_capacity;
     _ = result_len;
-    log("STUB: NtQueryValueKey(0x{X}, {}, {s})", .{key_handle, value_name_opt, @tagName(information_class)});
+    log("STUB: NtQueryValueKey(0x{X}, {any}, {s})", .{key_handle, value_name_opt, @tagName(information_class)});
     return .SUCCESS;
 }
 
@@ -853,7 +843,7 @@ pub fn NtOpenSymbolicLinkObject(
     desired_access: AccessMask,
     opt_object_attributes: ?*ObjectAttributes,
 ) callconv(.Win64) NTSTATUS {
-    log("STUB: NtOpenSymbolicLinkObject({})", .{opt_object_attributes});
+    log("STUB: NtOpenSymbolicLinkObject({any})", .{opt_object_attributes});
     const link = resovleAttrs(opt_object_attributes, true) orelse return .INVALID_PARAMETER;
     defer vfs.close(link);
     _ = link.get(.symlink);
@@ -933,8 +923,7 @@ pub fn NtOpenEvent(
     desired_access: AccessMask,
     opt_object_attributes: ?*ObjectAttributes,
 ) callconv(.Win64) NTSTATUS {
-    _ = opt_object_attributes;
-    log("STUB: NtOpenEvent({})", .{opt_object_attributes});
+    log("STUB: NtOpenEvent({any})", .{opt_object_attributes});
     _ = opt_handle;
     _ = desired_access;
     return .SUCCESS;
@@ -947,8 +936,7 @@ pub fn NtCreateEvent(
     event_type: rt.ULONG,
     initial_state: rt.BOOL,
 ) callconv(.Win64) NTSTATUS {
-    _ = opt_object_attributes;
-    log("STUB: NtCreateEvent({})", .{opt_object_attributes});
+    log("STUB: NtCreateEvent({any})", .{opt_object_attributes});
     _ = opt_handle;
     _ = desired_access;
     _ = event_type;
@@ -960,7 +948,6 @@ pub fn NtClose(
     handle: rt.HANDLE,
 ) callconv(.Win64) NTSTATUS {
     log("STUB: NtClose(0x{X})", .{handle});
-    _ = handle;
     return .SUCCESS;
 }
 
@@ -992,7 +979,7 @@ pub fn RtlCreateEnvironment(
 ) callconv(.Win64) NTSTATUS {
     _ = inherit;
     _ = env;
-    log("STUB: RtlCreateEnvironment({b}, {s})", .{inherit != 0, env});
+    // log("STUB: RtlCreateEnvironment({}, {s})", .{inherit != 0, env});
     return .SUCCESS;
 }
 
@@ -1012,7 +999,7 @@ const ObjectAttributes = extern struct {
     ) !void {
         _ = layout;
         _ = opts;
-        try writer.print("Attribs{{ .root_dir=0x{X}, name={} }}", .{
+        try writer.print("Attribs{{ .root_dir=0x{X}, name={any} }}", .{
             self.root_dir,
             self.name,
         });

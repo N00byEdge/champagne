@@ -18,26 +18,23 @@ const IMAGE_DIRECTORY_ENTRY_IAT = 12; // Import address table
 const IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT = 13; // Delay import table
 const IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR = 14; // COM descriptor table
 
-pub fn load(file: std.fs.File, allocator: std.mem.Allocator, comptime ResolveContext: type) !usize {
+pub fn load(file: std.fs.File, comptime ResolveContext: type) !usize {
     var resolve_context = ResolveContext{};
-    var arena = std.heap.ArenaAllocator.init(allocator);
-    defer arena.deinit();
 
-    var coff_file = std.coff.Coff.init(arena.allocator(), file);
-    try coff_file.loadHeader();
-    try coff_file.loadSections();
+    const file_size = try file.getEndPos();
+    const file_data = try file.readToEndAllocOptions(std.heap.page_allocator, file_size, file_size, 1, null);
+    var coff_file = std.coff.Coff{.allocator = undefined};
+    try coff_file.parse(file_data);
 
     var min_addr: usize = std.math.maxInt(usize);
     var max_addr: usize = std.math.minInt(usize);
 
-    for (coff_file.sections.items) |s| {
-        const header = s.header;
-
+    for (coff_file.getSectionHeaders()) |header| {
         if (header.virtual_address < min_addr) {
             min_addr = header.virtual_address;
         }
 
-        const top_addr = header.virtual_address + header.misc.virtual_size;
+        const top_addr = header.virtual_address + header.virtual_size;
 
         if (max_addr < top_addr) {
             max_addr = top_addr;
@@ -46,12 +43,12 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, comptime ResolveCon
         if (header.number_of_relocations != 0) {
             @panic("Section header relocations!");
         }
-        log("Name: '{s}', vaddr = 0x{X}, size = 0x{}", .{ header.name[0..std.mem.indexOfScalar(u8, &header.name, 0).?], header.virtual_address, header.misc.virtual_size });
+        log("Name: '{s}', vaddr = 0x{X}, size = 0x{}", .{ header.name[0..std.mem.indexOfScalar(u8, &header.name, 0).?], header.virtual_address, header.virtual_size });
     }
 
     const virt_size = ((max_addr - min_addr) + 0xFFF) & ~@as(usize, 0xFFF);
     const vmem = try std.os.mmap(
-        @intToPtr([*]align(4096) u8, min_addr + coff_file.pe_header.image_base),
+        @intToPtr([*]align(4096) u8, min_addr + coff_file.getImageBase()),
         virt_size,
         std.os.PROT.NONE,
         std.os.MAP.ANONYMOUS | std.os.MAP.PRIVATE,
@@ -60,17 +57,15 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, comptime ResolveCon
     );
     errdefer std.os.munmap(vmem);
 
-    const load_delta = @ptrToInt(vmem.ptr) -% (min_addr + coff_file.pe_header.image_base);
+    const load_delta = @ptrToInt(vmem.ptr) -% (min_addr + coff_file.getImageBase());
     log("Allocated executable space at 0x{X} (delta 0x{X})", .{ @ptrToInt(vmem.ptr), load_delta });
 
-    for (coff_file.sections.items) |s| {
-        const header = s.header;
-
+    for (coff_file.getSectionHeaders()) |header| {
         const section_mem = blk: {
-            var result = vmem[header.virtual_address - min_addr ..][0..header.misc.virtual_size];
+            var result = vmem[header.virtual_address - min_addr ..][0..header.virtual_size];
             result.len += 0xFFF;
             result.len &= ~@as(usize, 0xFFF);
-            break :blk result;
+            break :blk @alignCast(4096, result);
         };
 
         try std.os.mprotect(section_mem, std.os.PROT.READ | std.os.PROT.WRITE);
@@ -95,7 +90,7 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, comptime ResolveCon
     if (@ptrToInt(vmem.ptr) != min_addr) {
         log("File was loaded at an offset, doing relocations", .{});
 
-        const relocs_entry = coff_file.pe_header.data_directory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
+        const relocs_entry = coff_file.getDataDirectories()[IMAGE_DIRECTORY_ENTRY_BASERELOC];
         var reloc_block_bytes = vmem[relocs_entry.virtual_address - min_addr ..][0..relocs_entry.size];
 
         while (reloc_block_bytes.len >= 8) {
@@ -108,7 +103,6 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, comptime ResolveCon
 
                 const reloc_addr = current_block_base_addr + block_offset;
                 const reloc_bytes = vmem[reloc_addr - min_addr ..];
-                _ = reloc_bytes;
 
                 //log.debug("Relocation of type {d} at addr 0x{X} (offset 0x{X})", .{reloc_type, reloc_addr, block_offset});
 
@@ -209,7 +203,7 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, comptime ResolveCon
 
     // Imports?
     blk: {
-        const imports_entry = coff_file.pe_header.data_directory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+        const imports_entry = coff_file.getDataDirectories()[IMAGE_DIRECTORY_ENTRY_IMPORT];
         if (imports_entry.size == 0)
             break :blk;
         const import_descriptor_bytes = vmem[imports_entry.virtual_address - min_addr ..][0..imports_entry.size];
@@ -240,7 +234,7 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, comptime ResolveCon
 
     // Exports?
     blk: {
-        const exports_entry = coff_file.pe_header.data_directory[IMAGE_DIRECTORY_ENTRY_EXPORT];
+        const exports_entry = coff_file.getDataDirectories()[IMAGE_DIRECTORY_ENTRY_EXPORT];
         if (exports_entry.size == 0)
             break :blk;
         const export_descriptor_bytes = vmem[exports_entry.virtual_address - min_addr ..][0..exports_entry.size];
@@ -263,17 +257,15 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, comptime ResolveCon
         }
     }
 
-    for (coff_file.sections.items) |s| {
-        const header = s.header;
-
+    for (coff_file.getSectionHeaders()) |header| {
         const section_mem = blk: {
-            var result = vmem[header.virtual_address - min_addr ..][0..header.misc.virtual_size];
+            var result = vmem[header.virtual_address - min_addr ..][0..header.virtual_size];
             result.len += 0xFFF;
             result.len &= ~@as(usize, 0xFFF);
-            break :blk result;
+            break :blk @alignCast(4096, result);
         };
 
-        if (header.characteristics & 0x02000000 != 0) { // Section can be discarded after loading
+        if (header.flags.MEM_DISCARDABLE != 0) { // Section can be discarded after loading
             log("Unmapping section at 0x{X} with size 0x{X}", .{ @ptrToInt(section_mem.ptr), section_mem.len });
             std.os.munmap(section_mem);
             continue;
@@ -281,9 +273,9 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, comptime ResolveCon
 
         const prot_flags = blk: {
             var result: u32 = std.os.PROT.READ;
-            if (header.characteristics & std.coff.IMAGE_SCN_MEM_EXECUTE != 0)
+            if (header.flags.MEM_EXECUTE != 0)
                 result |= std.os.PROT.EXEC;
-            if (header.characteristics & std.coff.IMAGE_SCN_MEM_WRITE != 0)
+            if (header.flags.MEM_WRITE != 0)
                 result |= std.os.PROT.WRITE;
             break :blk result;
         };
@@ -297,5 +289,5 @@ pub fn load(file: std.fs.File, allocator: std.mem.Allocator, comptime ResolveCon
     }
     log("Section permissions set", .{});
 
-    return coff_file.pe_header.entry_addr +% load_delta +% coff_file.pe_header.image_base;
+    return coff_file.getOptionalHeader().address_of_entry_point +% load_delta +% coff_file.getImageBase();
 }

@@ -9,10 +9,6 @@ const vfs = @import("common/vfs.zig");
 const log_lib = @import("common/log.zig");
 const logger = log_lib.scoped(.launcher);
 
-var gpa = std.heap.GeneralPurposeAllocator(.{}){
-    .backing_allocator = std.heap.page_allocator,
-};
-
 pub fn log(
     comptime level: std.log.Level,
     comptime scope: anytype,
@@ -28,17 +24,13 @@ pub fn log(
 
 const ResolveContext = @import("common/symbols.zig").ResolveContext;
 
-var smss_path = rt.toNullTerminatedUTF16Buffer("C:\\Windows\\system32\\smss.exe");
-var smss_command_line = rt.toNullTerminatedUTF16Buffer("C:\\Windows\\system32\\smss.exe");
+var smss_path = std.unicode.utf8ToUtf16LeStringLiteral("C:\\Windows\\system32\\smss.exe").*;
+var smss_command_line = std.unicode.utf8ToUtf16LeStringLiteral("C:\\Windows\\system32\\smss.exe").*;
 
 fn setSymlink(path: []const u8, comptime value: []const u8) !void {
-    const S = struct {
-        const value = rt.toNullTerminatedUTF16Buffer(value);
-    };
-
     const node = try vfs.resolve8(path, true);
     defer vfs.close(node);
-    node.get(.symlink).?.* = &S.value;
+    node.get(.symlink).?.* = std.unicode.utf8ToUtf16LeStringLiteral(value);
 }
 
 fn doVfsInit() !void {
@@ -94,19 +86,19 @@ pub fn main() !void {
 
     try std.os.sigaction(std.os.SIG.TRAP, &sa, null);
 
-    var ntdll_file = try std.fs.cwd().openFile("test/Windows/system32/ntdll.dll", .{});
+    var ntdll_file = try std.fs.cwd().openFile("test/Windows/System32/ntdll.dll", .{});
     defer ntdll_file.close();
 
-    const ntdll_entry = try PE.load(ntdll_file, gpa.allocator(), ResolveContext);
+    const ntdll_entry = try PE.load(ntdll_file, ResolveContext);
     _ = ntdll_entry;
 
     // launch Smss.exe
-    var smss = try std.fs.cwd().openFile("test/Windows/system32/smss.exe", .{});
+    var smss = try std.fs.cwd().openFile("test/Windows/System32/smss.exe", .{});
     defer smss.close();
 
     try doVfsInit();
 
-    const smss_entry = try PE.load(smss, gpa.allocator(), ResolveContext);
+    const smss_entry = try PE.load(smss, ResolveContext);
     logger("Calling smss.exe entry @ 0x{X}", .{smss_entry});
     _ = rt.call_entry(smss_entry);
 }

@@ -30,11 +30,11 @@ pub const LPCWSTR = ?[*:0]const WCHAR;
 const log = @import("log.zig").scoped(.rt);
 
 export fn c_log_impl(function: ?[*:0]u8, file: ?[*:0]u8, line: c_int, msg: ?[*:0]WCHAR) callconv(.Win64) void {
-    log("{s}: {s}:{d}: {}", .{ function, file, line, fmt(msg) });
+    log("{any}: {any}:{d}: {}", .{ function, file, line, fmt(msg) });
 }
 
 export fn c_panic_impl(function: ?[*:0]u8, file: ?[*:0]u8, line: c_int, msg: ?[*:0]WCHAR) callconv(.Win64) void {
-    log("{s}: {s}:{d}: {}", .{ function, file, line, fmt(msg) });
+    log("{any}: {any}:{d}: {}", .{ function, file, line, fmt(msg) });
     @panic("");
 }
 
@@ -84,15 +84,6 @@ pub fn Fmt(comptime T: type) type {
     };
 }
 
-pub fn toNullTerminatedUTF16Buffer(comptime ascii: []const u8) [ascii.len:0]u16 {
-    comptime var result: []const u16 = &[_]u16{};
-    inline for (ascii) |chr| {
-        result = result ++ &[_]u16{chr};
-    }
-    result = result ++ [_]u16{0};
-    return result[0..ascii.len :0].*;
-}
-
 pub fn pad(comptime v: anytype, comptime len: usize) [len]@TypeOf(v[0]) {
     return v ++ ([1]@TypeOf(v[0]){0} ** (len - v.len));
 }
@@ -110,7 +101,7 @@ pub const EventFilterDescriptor = extern struct {
     type: ULONG,
 };
 
-pub const EnableCallback = fn (
+pub const EnableCallback = *const fn (
     source: LPCGUID,
     is_enabled: ULONG,
     level: UCHAR,
@@ -235,7 +226,7 @@ const KUserSharedData = extern struct {
     time_zone_bias: KSystemTime = .{},       // 0x0020
     image_number_low: USHORT = 0,            // 0x002C
     image_number_high: USHORT = 42,          // 0x002E
-    nt_system_root: [0x104]WCHAR = pad(toNullTerminatedUTF16Buffer("C:\\Windows"), 0x104), // 0x30
+    nt_system_root: [0x104]WCHAR = pad(std.unicode.utf8ToUtf16LeStringLiteral("C:\\Windows").*, 0x104), // 0x30
     max_stack_trace_depth: ULONG = 20,       // 0x0238
     crypto_exponent: ULONG = 0x10001,        // 0x023C
     time_zone_id: ULONG = 0,                 // 0x0240
@@ -289,5 +280,5 @@ pub fn init(image_path_name: [:0]WCHAR, command_line: [:0]WCHAR) !void {
 }
 
 pub fn call_entry(entry_point: usize) c_int {
-    return @intToPtr(fn (*PEB) callconv(.Win64) c_int, entry_point)(&peb);
+    return @intToPtr(*const fn (*PEB) callconv(.Win64) c_int, entry_point)(&peb);
 }

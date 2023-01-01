@@ -3,7 +3,7 @@ const std = @import("std");
 var tp_alloc = std.heap.GeneralPurposeAllocator(.{}){ .backing_allocator = std.heap.page_allocator };
 var work_alloc = std.heap.GeneralPurposeAllocator(.{}){ .backing_allocator = std.heap.page_allocator };
 
-pub const Work = fn(
+pub const Work = *const fn(
     Environment,
     Context,
     *anyopaque,

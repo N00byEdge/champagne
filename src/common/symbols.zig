@@ -1835,7 +1835,7 @@ const symbols = .{
             .EtwEventWrite, // Nt calls
             .EtwEventEnabled, // Nt calls
             .RtlQueryRegistryValuesEx,
-            
+
             .RtlSetEnvironmentVariable,
             .RtlQueryEnvironmentVariable_U,
             .RtlDosSearchPath_U,
@@ -1874,7 +1874,7 @@ comptime {
 
         @setEvalBranchQuota(5 * dll_value.success_stubs.len);
         for(dll_value.success_stubs) |success_symbol| {
-            dll_symbols = dll_symbols ++ &[1][]const u8{@tagName(success_symbol)};   
+            dll_symbols = dll_symbols ++ &[1][]const u8{@tagName(success_symbol)};
         }
 
         @setEvalBranchQuota(1000 * dll_symbols.len);
@@ -1954,7 +1954,7 @@ pub const ResolveContext = struct {
                 inline for(dll_value.kill) |kill_sym| {
                     if(std.mem.eql(u8, @tagName(kill_sym), symbol_name)) {
                         return .{
-                            .hook = @ptrCast(*const anyopaque, KillStub(@tagName(kill_sym)).f)
+                            .hook = @ptrCast(*const anyopaque, &KillStub(@tagName(kill_sym)).f)
                         };
                     }
                 }
@@ -1963,7 +1963,7 @@ pub const ResolveContext = struct {
                 inline for(dll_value.success_stubs) |stub_sym| {
                     if(std.mem.eql(u8, @tagName(stub_sym), symbol_name)) {
                         return .{
-                            .hook = @ptrCast(*const anyopaque, SuccessStub(@tagName(stub_sym)).f)
+                            .hook = @ptrCast(*const anyopaque, &SuccessStub(@tagName(stub_sym)).f)
                         };
                     }
                 }
